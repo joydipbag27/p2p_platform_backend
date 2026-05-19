@@ -1,10 +1,14 @@
 import express from "express"
-import { test } from "../Controllers/userController.js"
+import { emailLogin, emailRegister} from "../Controllers/userController.js"
 
 const router = express.Router()
 
 
-router.get("/hello", test)
+router.post("/register", emailRegister)
+router.post("/login", emailLogin)
+
+
+
 
 
 export default router

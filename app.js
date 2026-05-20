@@ -1,11 +1,11 @@
 import express from "express";
 import dotenv from "dotenv";
-import userRoutes from "./Routes/userRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 import { connectDB } from "./config/db.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { checkAuth } from "./middlewares/authMiddleware.js";
-import { getUser } from "./Controllers/userController.js";
+import { getUser } from "./controllers/userController.js";
 
 dotenv.config({
   path: ".env.local",
@@ -21,14 +21,12 @@ app.use(cookieParser(process.env.SESSION_SECRET));
 app.use(
   cors({
     origin: process.env.FRONTEND_ENDPOINT,
-    credentials: true
+    credentials: true,
   }),
 );
 
-
-
 app.use("/user", userRoutes);
-app.use("/test",checkAuth, getUser)
+app.use("/test", checkAuth, getUser);
 
 app.listen(process.env.PORT, () => {
   console.log(`App is running on port ${process.env.PORT}`);

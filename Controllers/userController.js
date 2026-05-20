@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import { Session } from "../Models/sessionModel.js";
-import { User } from "../Models/userModel.js";
+import { Session } from "../models/sessionModel.js";
+import { User } from "../models/userModel.js";
 import { loginSchema, registerSchema } from "../validators/zodSchema.js";
 import bcrypt from "bcrypt";
 
@@ -77,5 +77,5 @@ export const emailLogin = async (req, res) => {
 };
 
 export const getUser = async (req, res) => {
-  res.json(req.user.id)
-}
+  res.json(req.user.id);
+};

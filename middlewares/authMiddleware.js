@@ -1,4 +1,4 @@
-import { Session } from "../Models/sessionModel.js";
+import { Session } from "../models/sessionModel.js";
 
 export const checkAuth = async (req, res, next) => {
   try {

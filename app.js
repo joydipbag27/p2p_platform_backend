@@ -6,6 +6,8 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import { checkAuth } from "./middlewares/authMiddleware.js";
 import { getUser } from "./controllers/userController.js";
+import exchangeRoutes from "./routes/exchangeRoutes.js"
+
 
 dotenv.config({
   path: ".env.local",
@@ -26,6 +28,9 @@ app.use(
 );
 
 app.use("/user", userRoutes);
+app.use("/exchange", checkAuth, exchangeRoutes)
+
+
 app.use("/test", checkAuth, getUser);
 
 app.listen(process.env.PORT, () => {

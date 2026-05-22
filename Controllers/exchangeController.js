@@ -1,15 +1,17 @@
 import { ExchangeRequest } from "../models/exchangeRequestModel.js";
 import { exchangeRequestSchema } from "../validators/zodSchema.js";
 
+//a created it
 export const createRequest = async (req, res) => {
-  const existingExchangeReq = await ExchangeRequest.find({
+  const existingExchangeReq = await ExchangeRequest.findOne({
     creator: req.user.id,
+    status: "ACTIVE",
   });
 
-  if (existingExchangeReq.length > 0) {
+  if (existingExchangeReq) {
     return res
       .status(400)
-      .json({ error: "You already have a exchange request" });
+      .json({ error: "You already have a active exchange request" });
   }
 
   const { success, data, error } = exchangeRequestSchema.safeParse(req.body);
@@ -27,7 +29,7 @@ export const createRequest = async (req, res) => {
       amount,
       radius,
       note,
-      expiresAt: Date.now() + 1000 * expiry * 60,
+      expiresAt: new Date(Date.now() + 1000 * expiry * 60),
     });
 
     return res
@@ -39,17 +41,25 @@ export const createRequest = async (req, res) => {
   }
 };
 
-export const deleteRequest = async (req, res) => {
+//a can cancel it
+export const cancelRequest = async (req, res) => {
   const existingExchangeReq = await ExchangeRequest.findOne({
     creator: req.user.id,
+    status: "ACTIVE",
   });
 
   if (!existingExchangeReq) {
-    return res.status(400).json({ error: "You don't have a exchange request" });
+    return res
+      .status(400)
+      .json({ error: "This request can no longer be cancelled" });
   }
 
   try {
-    await ExchangeRequest.findByIdAndDelete(existingExchangeReq._id);
+    await existingExchangeReq.updateOne({
+      $set: {
+        status: "CANCELLED",
+      },
+    });
 
     return res
       .status(200)
@@ -58,4 +68,14 @@ export const deleteRequest = async (req, res) => {
     console.error(error);
     return res.status(500).json({ error: "Failed to delete exchange request" });
   }
+};
+
+//show discoverable requests
+export const getRequests = async (req, res) => {
+  const requests = await ExchangeRequest.find({
+    creator: { $ne: req.user.id },
+    status: "ACTIVE",
+  });
+
+  res.json(requests);
 };

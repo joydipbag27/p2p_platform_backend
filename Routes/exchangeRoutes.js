@@ -1,11 +1,16 @@
-import express from "express"
-import { createRequest, deleteRequest } from "../controllers/exchangeController.js"
+import express from "express";
+import {
+  cancelRequest,
+  createRequest,
+  getRequests,
+} from "../controllers/exchangeController.js";
 
-const router = express.Router()
+const router = express.Router();
 
-router.post("/create", createRequest)
+router.post("/create", createRequest);
 
-router.delete("/delete", deleteRequest)
+router.delete("/cancel", cancelRequest);
 
+router.get("/", getRequests);
 
-export default router
+export default router;

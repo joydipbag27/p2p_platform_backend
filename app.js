@@ -7,6 +7,7 @@ import cors from "cors";
 import { checkAuth } from "./middlewares/authMiddleware.js";
 import { getUser } from "./controllers/userController.js";
 import exchangeRoutes from "./routes/exchangeRoutes.js"
+import matchRoutes from "./routes/matchRoutes.js"
 
 
 dotenv.config({
@@ -29,6 +30,7 @@ app.use(
 
 app.use("/user", userRoutes);
 app.use("/exchange", checkAuth, exchangeRoutes)
+app.use("/match", checkAuth, matchRoutes)
 
 
 app.use("/test", checkAuth, getUser);

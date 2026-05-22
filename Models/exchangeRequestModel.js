@@ -27,12 +27,11 @@ const exchangeRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["ACTIVE", "MATCHED", "COMPLETED", "CANCELLED"],
+      enum: ["ACTIVE", "PENDING_MATCH", "MATCHED", "COMPLETED", "CANCELLED"],
       default: "ACTIVE",
     },
     expiresAt: {
       type: Date,
-      required: true,
     },
   },
   { timestamps: true, strict: "throw" },

@@ -3,17 +3,21 @@ import {
   confirmMatch,
   createMatch,
   rejectMatch,
-  viewMatch,
+  viewActiveMatch,
+  viewPendingMatch,
+  
 } from "../controllers/matchController.js";
 
 const router = express.Router();
 
 router.post("/accept/:requestId", createMatch);
 
-router.get("/", viewMatch);
+router.get("/active", viewActiveMatch);
 
-router.patch("/confirm", confirmMatch);
+router.get("/pending", viewPendingMatch)
 
-router.patch("/reject", rejectMatch);
+router.patch("/confirm/:matchId", confirmMatch);
+
+router.patch("/reject/:matchId", rejectMatch);
 
 export default router;

@@ -19,7 +19,7 @@ const matchSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ["ACTIVE", "PENDING", "COMPLETED", "CANCELLED"],
-    default: "ACTIVE",
+    required: true
   },
   meetUpLocation: {
     type: String
@@ -36,6 +36,22 @@ const matchSchema = new mongoose.Schema({
 {
   strict: "throw",
   timestamps: true
+});
+
+
+matchSchema.index({
+  request: 1,
+  status: 1,
+});
+
+matchSchema.index({
+  requester: 1,
+  status: 1,
+});
+
+matchSchema.index({
+  accepter: 1,
+  status: 1,
 });
 
 

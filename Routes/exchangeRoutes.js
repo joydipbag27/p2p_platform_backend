@@ -2,15 +2,18 @@ import express from "express";
 import {
   cancelRequest,
   createRequest,
-  getRequests,
+  getMyRequests,
+  getPublicRequests,
 } from "../controllers/exchangeController.js";
 
 const router = express.Router();
 
 router.post("/create", createRequest);
 
-router.delete("/cancel", cancelRequest);
+router.patch("/cancel/:requestId", cancelRequest);
 
-router.get("/", getRequests);
+router.get("/public", getPublicRequests);
+
+router.get("/me", getMyRequests)
 
 export default router;

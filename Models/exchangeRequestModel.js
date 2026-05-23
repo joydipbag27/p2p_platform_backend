@@ -27,7 +27,7 @@ const exchangeRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["ACTIVE", "PENDING_MATCH", "MATCHED", "COMPLETED", "CANCELLED"],
+      enum: ["ACTIVE", "MATCHED", "COMPLETED", "CANCELLED"],
       default: "ACTIVE",
     },
     expiresAt: {
@@ -37,7 +37,15 @@ const exchangeRequestSchema = new mongoose.Schema(
   { timestamps: true, strict: "throw" },
 );
 
-exchangeRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+exchangeRequestSchema.index({
+  creator: 1,
+  status: 1,
+});
+
+exchangeRequestSchema.index({
+  status: 1,
+  expiresAt: 1,
+});
 
 export const ExchangeRequest = mongoose.model(
   "exchangeRequest",

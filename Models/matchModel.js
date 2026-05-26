@@ -32,6 +32,28 @@ const matchSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  completedAt:{
+    type: Date
+  },
+  cancelledAt: {
+    type: Date
+  },
+  accepterCompleted: {
+    type: Boolean,
+    default: false
+  },
+  accepterCancelled: {
+    type: Boolean,
+    default: false
+  },
+  requesterCompleted: {
+    type: Boolean,
+    default: false
+  },
+  requesterCancelled: {
+    type: Boolean,
+    default: false
+  }
 },
 {
   strict: "throw",

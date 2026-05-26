@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { ExchangeRequest } from "../models/exchangeRequestModel.js";
 import { Match } from "../models/matchModel.js";
 import { exchangeRequestSchema } from "../validators/zodSchema.js";
@@ -47,6 +48,10 @@ export const createRequest = async (req, res) => {
 export const cancelRequest = async (req, res) => {
   const { requestId } = req.params;
 
+  if (!mongoose.isValidObjectId(requestId)) {
+    return res.status(400).json({ error: "Invalid match ID" });
+  }
+
   const existingExchangeReq = await ExchangeRequest.findOne({
     _id: requestId,
     creator: req.user.id,
@@ -59,6 +64,17 @@ export const cancelRequest = async (req, res) => {
 
   if (existingExchangeReq.expiresAt < new Date()) {
     return res.status(400).json({ error: "This request is already expired" });
+  }
+
+  const matchInfo = await Match.findOne({
+    request: requestId,
+    status: { $in: ["PENDING", "ACTIVE"] },
+  });
+
+  if (matchInfo) {
+    return res
+      .status(403)
+      .json({ error: "You can't cancel a matched request" });
   }
 
   try {
@@ -95,11 +111,9 @@ export const getPublicRequests = async (req, res) => {
     });
 
     if (requests.length === 0) {
-      return res
-        .status(400)
-        .json({
-          info: "Looks like no public requests there, please try after some time",
-        });
+      return res.status(400).json({
+        info: "Looks like no public requests there, please try after some time",
+      });
     } else {
       res.status(200).json(requests);
     }
@@ -113,12 +127,20 @@ export const getMyRequests = async (req, res) => {
   try {
     const requests = await ExchangeRequest.find({
       creator: req.user.id,
-    });
+    }).lean();
 
     if (requests.length === 0) {
       return res.status(400).json({ error: "You don't have any requests" });
     } else {
-      res.status(200).json(requests);
+      const updatedReq = requests.map((elem) => {
+        if (elem.expiresAt < new Date()) {
+          return { ...elem, expired: true };
+        } else {
+          return { ...elem, expired: false };
+        }
+      });
+
+      res.status(200).json(updatedReq);
     }
   } catch (error) {
     return res.status(500).json({ error: "Failed to get requests" });

@@ -77,5 +77,11 @@ export const emailLogin = async (req, res) => {
 };
 
 export const getUser = async (req, res) => {
-  res.json(req.user.id);
+  try {
+    const userInfo = await User.findById(req.user.id).select("-password");
+    res.status(200).json(userInfo);
+  } catch (error) {
+    console.error(error);
+    return res.status(400).json({ error: "Failed to get user info" });
+  }
 };

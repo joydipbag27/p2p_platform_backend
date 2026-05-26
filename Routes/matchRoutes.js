@@ -1,5 +1,7 @@
 import express from "express";
 import {
+  cancelActiveMatch,
+  completeMatch,
   confirmMatch,
   createMatch,
   rejectMatch,
@@ -19,5 +21,9 @@ router.get("/pending", viewPendingMatch)
 router.patch("/confirm/:matchId", confirmMatch);
 
 router.patch("/reject/:matchId", rejectMatch);
+
+router.patch("/complete/:matchId", completeMatch)
+ 
+router.patch("/cancel/:matchId", cancelActiveMatch)
 
 export default router;

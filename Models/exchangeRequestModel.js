@@ -33,6 +33,12 @@ const exchangeRequestSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
     },
+    completedAt: {
+      type:Date
+    }, 
+    cancelledAt: {
+      type: Date
+    }
   },
   { timestamps: true, strict: "throw" },
 );

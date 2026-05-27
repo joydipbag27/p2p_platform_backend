@@ -169,8 +169,6 @@ export const completeMatch = async (req, res) => {
     requester = true;
   }
 
-  console.log(requester);
-
   //DOUBLE COMPLETION CHECK
   if (requester && matchInfo.requesterCompleted) {
     return res.status(403).json({ error: "You already completed this match" });
@@ -298,7 +296,10 @@ export const viewActiveMatch = async (req, res) => {
   const matchInfo = await Match.find({
     $or: [{ requester: req.user.id }, { accepter: req.user.id }],
     status: "ACTIVE",
-  });
+  })
+    .populate("requester", "username avatar trustScore")
+    .populate("accepter", "username avatar trustScore")
+    .populate("request");
 
   if (matchInfo.length === 0) {
     return res.status(404).json({ error: "No match found" });
@@ -311,7 +312,10 @@ export const viewPendingMatch = async (req, res) => {
   const matchInfo = await Match.find({
     requester: req.user.id,
     status: "PENDING",
-  });
+  })
+    .populate("requester", "username avatar")
+    .populate("accepter", "username avatar")
+    .populate("request");
 
   if (matchInfo.length === 0) {
     return res.status(404).json({ error: "No match found" });

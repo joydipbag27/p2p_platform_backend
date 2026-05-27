@@ -5,9 +5,8 @@ import { connectDB } from "./config/db.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { checkAuth } from "./middlewares/authMiddleware.js";
-import exchangeRoutes from "./routes/exchangeRoutes.js"
-import matchRoutes from "./routes/matchRoutes.js"
-
+import exchangeRoutes from "./routes/exchangeRoutes.js";
+import matchRoutes from "./routes/matchRoutes.js";
 
 dotenv.config({
   path: ".env.local",
@@ -28,8 +27,8 @@ app.use(
 );
 
 app.use("/user", userRoutes);
-app.use("/exchange", checkAuth, exchangeRoutes)
-app.use("/match", checkAuth, matchRoutes)
+app.use("/exchange", checkAuth, exchangeRoutes);
+app.use("/match", checkAuth, matchRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`App is running on port ${process.env.PORT}`);

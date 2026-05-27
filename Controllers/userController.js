@@ -20,6 +20,7 @@ export const emailRegister = async (req, res) => {
       username,
       email,
       password: hashedPass,
+      avatar: `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURI(username)}`,
     });
   } catch (error) {
     return res.status(500).json({ error: "Failed to create user" });

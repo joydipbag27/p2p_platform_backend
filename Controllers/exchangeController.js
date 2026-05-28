@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { ExchangeRequest } from "../models/exchangeRequestModel.js";
 import { Match } from "../models/matchModel.js";
 import { exchangeRequestSchema } from "../validators/zodSchema.js";
+import { errorResponse, successResponse } from "../utils/response.js";
 
 //CREATE EXCHANGE REQUEST
 export const createRequest = async (req, res) => {
@@ -12,15 +13,17 @@ export const createRequest = async (req, res) => {
   });
 
   if (existingExchangeReq) {
-    return res
-      .status(400)
-      .json({ error: "You already have a active or matched exchange request" });
+    return errorResponse(
+      res,
+      400,
+      "You already have a active or matched exchange request",
+    );
   }
 
   const { success, data, error } = exchangeRequestSchema.safeParse(req.body);
 
   if (!success) {
-    return res.status(400).json({ error: error.issues[0].message });
+    return errorResponse(res, 400, error.issues[0].message);
   }
 
   const { type, amount, radius, note, expiry } = data;
@@ -35,12 +38,12 @@ export const createRequest = async (req, res) => {
       expiresAt: new Date(Date.now() + 1000 * expiry * 60),
     });
 
-    return res
-      .status(200)
-      .json({ info: "Exchange request created successfully" });
+    return res;
+
+    return successResponse(res, 200, "Exchange request created successfully");
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Failed to create exchange request" });
+    return errorResponse(res, 500, "Failed to create exchange request");
   }
 };
 
@@ -49,7 +52,7 @@ export const cancelRequest = async (req, res) => {
   const { requestId } = req.params;
 
   if (!mongoose.isValidObjectId(requestId)) {
-    return res.status(400).json({ error: "Invalid match ID" });
+    return errorResponse(res, 400, "Invalid match ID");
   }
 
   const existingExchangeReq = await ExchangeRequest.findOne({
@@ -59,11 +62,11 @@ export const cancelRequest = async (req, res) => {
   });
 
   if (!existingExchangeReq) {
-    return res.status(400).json({ error: "You don't have an active request" });
+    return errorResponse(res, 400, "You don't have an active request");
   }
 
   if (existingExchangeReq.expiresAt < new Date()) {
-    return res.status(400).json({ error: "This request is already expired" });
+    return errorResponse(res, 400, "This request is already expired");
   }
 
   const matchInfo = await Match.findOne({
@@ -72,9 +75,7 @@ export const cancelRequest = async (req, res) => {
   });
 
   if (matchInfo) {
-    return res
-      .status(403)
-      .json({ error: "You can't cancel a matched request" });
+    return errorResponse(res, 403, "You can't cancel a matched request");
   }
 
   try {
@@ -84,12 +85,11 @@ export const cancelRequest = async (req, res) => {
       },
     });
 
-    return res
-      .status(200)
-      .json({ info: "Exchange request cancelled successfully" });
+    return successResponse(res, 200, "Exchange request cancelled successfully");
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Failed to cancel exchange request" });
+
+    return errorResponse(res, 500, "Failed to cancel exchange request");
   }
 };
 
@@ -111,14 +111,21 @@ export const getPublicRequests = async (req, res) => {
     });
 
     if (requests.length === 0) {
-      return res.status(400).json({
-        info: "Looks like no public requests there, please try after some time",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Looks like no public requests there, please try after some time",
+      );
     } else {
-      res.status(200).json(requests);
+      return successResponse(
+        res,
+        200,
+        "Public requests fetched successfully",
+        requests,
+      );
     }
   } catch (error) {
-    return res.status(500).json({ error: "Failed to get requests" });
+    return errorResponse(res, 500, "Failed to get requests");
   }
 };
 
@@ -130,7 +137,7 @@ export const getMyRequests = async (req, res) => {
     }).lean();
 
     if (requests.length === 0) {
-      return res.status(400).json({ error: "You don't have any requests" });
+      return errorResponse(res, 400, "You don't have any requests");
     } else {
       const updatedReq = requests.map((elem) => {
         if (elem.expiresAt < new Date()) {
@@ -140,9 +147,14 @@ export const getMyRequests = async (req, res) => {
         }
       });
 
-      res.status(200).json(updatedReq);
+      return successResponse(
+        res,
+        200,
+        "Own requests fetched successfully",
+        updatedReq,
+      );
     }
   } catch (error) {
-    return res.status(500).json({ error: "Failed to get requests" });
+    return errorResponse(res, 400, "Failed to get requests");
   }
 };

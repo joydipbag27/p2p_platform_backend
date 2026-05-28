@@ -43,3 +43,11 @@ export const exchangeRequestSchema = z.object({
     .min(5, "Minimum expiry is 5 minutes")
     .max(60, "Maximum expiry is 60 minutes"),
 });
+
+export const chatSchema = z.object({
+  message: z
+    .string()
+    .trim()
+    .min(1, "Chat length must be 1 character")
+    .max(300, "Chat length can't exceed 300 characters"),
+});

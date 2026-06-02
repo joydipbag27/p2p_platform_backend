@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { ExchangeRequest } from "../models/exchangeRequestModel.js";
 import { Match } from "../models/matchModel.js";
 import { errorResponse, successResponse } from "../utils/response.js";
+import { io } from "../app.js";
 
 export const createMatch = async (req, res) => {
   const { requestId } = req.params;
@@ -56,6 +57,8 @@ export const createMatch = async (req, res) => {
       accepterConfirmed: true,
     });
 
+    io.to(`user:${exchangeReqInfo.creator}`).emit("newMatch", matchInfo);
+
     return successResponse(res, 200, "Match created successfully", matchInfo);
   } catch (error) {
     return errorResponse(res, 500, "Failed to create match");
@@ -107,6 +110,11 @@ export const confirmMatch = async (req, res) => {
       { $unset: { expiresAt: 1 } },
     );
 
+    io.to(`user:${matchInfo.accepter}`).emit(
+      "confirmMatch",
+      "Your match got confirmed by the requester",
+    );
+
     return successResponse(res, 200, "Match confirmed successfully");
   } catch (error) {
     return errorResponse(res, 500, "Failed to confirm match");
@@ -115,6 +123,8 @@ export const confirmMatch = async (req, res) => {
 
 export const rejectMatch = async (req, res) => {
   const { matchId } = req.params;
+
+  console.log(matchId);
 
   if (!mongoose.isValidObjectId(matchId)) {
     return errorResponse(res, 400, "Failed to confirm match");
@@ -140,7 +150,12 @@ export const rejectMatch = async (req, res) => {
       { $set: { status: "CANCELLED" } },
     );
 
-    return confirmMatch(res, 200, "Match rejected successfully");
+    io.to(`user:${matchInfo.accepter}`).emit(
+      "rejectMatch",
+      "Your match got rejected by the requester",
+    );
+
+    return successResponse(res, 200, "Match rejected successfully");
   } catch (error) {
     return errorResponse(res, 500, "Failed to reject match");
   }
@@ -220,6 +235,12 @@ export const completeMatch = async (req, res) => {
       await exchangeReqInfo.updateOne({
         $set: { status: "COMPLETED", completedAt: new Date() },
       });
+
+      io.to(`user:${matchInfo.accepter}`).emit("completeMatch", "2/2");
+      io.to(`user:${matchInfo.requester}`).emit("completeMatch", "2/2");
+    } else {
+      io.to(`user:${matchInfo.accepter}`).emit("completeMatch", "1/2");
+      io.to(`user:${matchInfo.requester}`).emit("completeMatch", "1/2");
     }
 
     return successResponse(
@@ -288,6 +309,11 @@ export const cancelActiveMatch = async (req, res) => {
         requesterCancelled: true,
       },
     };
+
+    io.to(`user:${matchInfo.accepter}`).emit(
+      "cancelActiveMatch",
+      "Your transaction has cancelled successfully",
+    );
   } else {
     matchUpdateQuery = {
       $set: {
@@ -296,6 +322,11 @@ export const cancelActiveMatch = async (req, res) => {
         accepterCancelled: true,
       },
     };
+
+    io.to(`user:${matchInfo.requester}`).emit(
+      "cancelActiveMatch",
+      "Your transaction has cancelled successfully",
+    );
   }
   try {
     await matchInfo.updateOne(matchUpdateQuery);

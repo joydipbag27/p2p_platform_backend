@@ -5,6 +5,9 @@ export const initializeSocket = (io) => {
     console.log(`${socket.id} got connected`);
     console.log(io.engine.clientsCount);
 
+    socket.join("public-room")
+    socket.join(`user:${socket.user.id}`)
+
 
     registerChatHandler(io, socket)
     sendMessage(io, socket)

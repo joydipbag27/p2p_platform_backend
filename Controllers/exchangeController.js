@@ -3,6 +3,7 @@ import { ExchangeRequest } from "../models/exchangeRequestModel.js";
 import { Match } from "../models/matchModel.js";
 import { exchangeRequestSchema } from "../validators/zodSchema.js";
 import { errorResponse, successResponse } from "../utils/response.js";
+import { io } from "../app.js";
 
 //CREATE EXCHANGE REQUEST
 export const createRequest = async (req, res) => {
@@ -38,7 +39,7 @@ export const createRequest = async (req, res) => {
       expiresAt: new Date(Date.now() + 1000 * expiry * 60),
     });
 
-    return res;
+    io.to("public-room").emit("newRequest", request)
 
     return successResponse(res, 200, "Exchange request created successfully");
   } catch (error) {
@@ -84,6 +85,8 @@ export const cancelRequest = async (req, res) => {
         status: "CANCELLED",
       },
     });
+
+    io.to("public-room").emit("requestCancelled", requestId)
 
     return successResponse(res, 200, "Exchange request cancelled successfully");
   } catch (error) {

@@ -39,7 +39,7 @@ export const createRequest = async (req, res) => {
       expiresAt: new Date(Date.now() + 1000 * expiry * 60),
     });
 
-    io.to("public-room").emit("newRequest", request)
+    io.to("public-room").emit("newRequest", {request})
 
     return successResponse(res, 200, "Exchange request created successfully");
   } catch (error) {
@@ -86,7 +86,7 @@ export const cancelRequest = async (req, res) => {
       },
     });
 
-    io.to("public-room").emit("requestCancelled", requestId)
+    io.to("public-room").emit("requestCancelled", {requestId})
 
     return successResponse(res, 200, "Exchange request cancelled successfully");
   } catch (error) {

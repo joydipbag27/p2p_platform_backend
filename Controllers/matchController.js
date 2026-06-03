@@ -57,7 +57,9 @@ export const createMatch = async (req, res) => {
       accepterConfirmed: true,
     });
 
-    io.to(`user:${exchangeReqInfo.creator}`).emit("newMatch", matchInfo);
+    io.to(`user:${exchangeReqInfo.creator}`).emit("newMatch", {
+      match: matchInfo,
+    });
 
     return successResponse(res, 200, "Match created successfully", matchInfo);
   } catch (error) {
@@ -110,10 +112,10 @@ export const confirmMatch = async (req, res) => {
       { $unset: { expiresAt: 1 } },
     );
 
-    io.to(`user:${matchInfo.accepter}`).emit(
-      "confirmMatch",
-      "Your match got confirmed by the requester",
-    );
+    io.to(`user:${matchInfo.accepter}`).emit("confirmMatch", {
+      matchId,
+      success: true,
+    });
 
     return successResponse(res, 200, "Match confirmed successfully");
   } catch (error) {
@@ -150,10 +152,10 @@ export const rejectMatch = async (req, res) => {
       { $set: { status: "CANCELLED" } },
     );
 
-    io.to(`user:${matchInfo.accepter}`).emit(
-      "rejectMatch",
-      "Your match got rejected by the requester",
-    );
+    io.to(`user:${matchInfo.accepter}`).emit("rejectMatch", {
+      matchId,
+      success: true,
+    });
 
     return successResponse(res, 200, "Match rejected successfully");
   } catch (error) {
@@ -236,11 +238,27 @@ export const completeMatch = async (req, res) => {
         $set: { status: "COMPLETED", completedAt: new Date() },
       });
 
-      io.to(`user:${matchInfo.accepter}`).emit("completeMatch", "2/2");
-      io.to(`user:${matchInfo.requester}`).emit("completeMatch", "2/2");
+      io.to(`user:${matchInfo.accepter}`).emit("completeMatch", {
+        matchId,
+        completedCount: 2,
+        totalCount: 2,
+      });
+      io.to(`user:${matchInfo.requester}`).emit("completeMatch", {
+        matchId,
+        completedCount: 2,
+        totalCount: 2,
+      });
     } else {
-      io.to(`user:${matchInfo.accepter}`).emit("completeMatch", "1/2");
-      io.to(`user:${matchInfo.requester}`).emit("completeMatch", "1/2");
+      io.to(`user:${matchInfo.accepter}`).emit("completeMatch", {
+        matchId,
+        completedCount: 1,
+        totalCount: 2,
+      });
+      io.to(`user:${matchInfo.requester}`).emit("completeMatch", {
+        matchId,
+        completedCount: 1,
+        totalCount: 2,
+      });
     }
 
     return successResponse(
@@ -312,7 +330,9 @@ export const cancelActiveMatch = async (req, res) => {
 
     io.to(`user:${matchInfo.accepter}`).emit(
       "cancelActiveMatch",
-      "Your transaction has cancelled successfully",
+      {
+        matchId, success: true
+      },
     );
   } else {
     matchUpdateQuery = {
@@ -325,7 +345,9 @@ export const cancelActiveMatch = async (req, res) => {
 
     io.to(`user:${matchInfo.requester}`).emit(
       "cancelActiveMatch",
-      "Your transaction has cancelled successfully",
+      {
+        matchId, success: true
+      },
     );
   }
   try {

@@ -182,7 +182,7 @@ export const completeMatch = async (req, res) => {
 
   const exchangeReqInfo = await ExchangeRequest.findOne({
     _id: matchInfo.request,
-    status: "MATCHED",
+    status: {$in: ["MATCHED", "COMPLETED"]},
   });
 
   if (!exchangeReqInfo) {
@@ -232,10 +232,7 @@ export const completeMatch = async (req, res) => {
     if (refreshedMatch.accepterCompleted && refreshedMatch.requesterCompleted) {
       await matchInfo.updateOne({ status: "COMPLETED" });
 
-      await exchangeReqInfo.updateOne({
-        $set: { status: "COMPLETED", completedAt: new Date() },
-      });
-
+      
       io.to(`user:${matchInfo.accepter}`).emit("completeMatch", {
         matchId,
         completedCount: 2,
@@ -258,6 +255,10 @@ export const completeMatch = async (req, res) => {
         totalCount: 2,
       });
     }
+
+    await exchangeReqInfo.updateOne({
+      $set: { status: "COMPLETED", completedAt: new Date() },
+    });
 
     return successResponse(
       res,

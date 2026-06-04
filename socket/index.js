@@ -1,4 +1,4 @@
-import { registerChatHandler, sendMessage } from "./handlers/chatHandler.js";
+import { registerChatHandler, sendMessage, stopTyping, typing } from "./handlers/chatHandler.js";
 
 export const initializeSocket = (io) => {
   io.on("connection", (socket) => {
@@ -11,6 +11,8 @@ export const initializeSocket = (io) => {
 
     registerChatHandler(io, socket)
     sendMessage(io, socket)
+    typing(io, socket)
+    stopTyping(io, socket)
 
     socket.on("disconnect", () => {
       console.log(`${socket.id} got disconnected`);

@@ -76,8 +76,7 @@ export const sendMessage = (io, socket) => {
         matchInfo.requester.toString() === socket.user.id.toString() ||
         matchInfo.accepter.toString() === socket.user.id.toString();
 
-
-      if(!isParticipant){
+      if (!isParticipant) {
         return callback({
           success: false,
           error: "Unauthorized",
@@ -102,5 +101,21 @@ export const sendMessage = (io, socket) => {
         error: "Unable to send message",
       });
     }
+  });
+};
+
+export const typing = (io, socket) => {
+  socket.on("typing", (data) => {
+    const { matchId, username } = data;
+
+    io.to(matchId).emit("typing", username);
+  });
+};
+
+export const stopTyping = (io, socket) => {
+  socket.on("stopTyping", (data) => {
+    const { matchId, username } = data;
+
+    io.to(matchId).emit("stopTyping", username);
   });
 };

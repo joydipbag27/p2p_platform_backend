@@ -21,7 +21,6 @@ export const registerChatHandler = (io, socket) => {
         });
       }
 
-
       if (
         matchInfo.requester.toString() === socket.user.id.toString() ||
         matchInfo.accepter.toString() === socket.user.id.toString()
@@ -73,11 +72,12 @@ export const sendMessage = (io, socket) => {
         });
       }
 
-      if (
+      const isParticipant =
         matchInfo.requester.toString() === socket.user.id.toString() ||
-        matchInfo.accepter.toString() === socket.user.id.toString()
-      ) {
-      } else {
+        matchInfo.accepter.toString() === socket.user.id.toString();
+
+
+      if(!isParticipant){
         return callback({
           success: false,
           error: "Unauthorized",
@@ -97,7 +97,7 @@ export const sendMessage = (io, socket) => {
         message: chat,
       });
     } catch (error) {
-      callback({
+      return callback({
         success: false,
         error: "Unable to send message",
       });

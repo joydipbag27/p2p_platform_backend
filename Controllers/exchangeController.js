@@ -111,13 +111,14 @@ export const getPublicRequests = async (req, res) => {
       status: "ACTIVE",
       expiresAt: { $gt: new Date() },
       _id: { $nin: acceptedRequestIds },
-    });
+    }).populate("creator", "username avatar");
 
     if (requests.length === 0) {
       return errorResponse(
         res,
-        400,
+        200,
         "Looks like no public requests there, please try after some time",
+        []
       );
     } else {
       return successResponse(
@@ -128,6 +129,7 @@ export const getPublicRequests = async (req, res) => {
       );
     }
   } catch (error) {
+    console.log(error);
     return errorResponse(res, 500, "Failed to get requests");
   }
 };

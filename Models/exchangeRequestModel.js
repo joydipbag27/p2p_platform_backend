@@ -4,7 +4,7 @@ const exchangeRequestSchema = new mongoose.Schema(
   {
     creator: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "user",
       required: true,
     },
     type: {

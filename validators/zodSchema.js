@@ -30,7 +30,7 @@ export const exchangeRequestSchema = z.object({
   type: z.enum(["NEED_CASH", "NEED_UPI"]),
   amount: z.coerce
     .number()
-    .min(500, "Minimum amount is 500")
+    .min(100, "Minimum amount is 100")
     .max(50000, "Maximum value is 50000"),
   radius: z.coerce
     .number()

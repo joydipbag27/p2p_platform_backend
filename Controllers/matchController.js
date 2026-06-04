@@ -126,8 +126,6 @@ export const confirmMatch = async (req, res) => {
 export const rejectMatch = async (req, res) => {
   const { matchId } = req.params;
 
-  console.log(matchId);
-
   if (!mongoose.isValidObjectId(matchId)) {
     return errorResponse(res, 400, "Failed to confirm match");
   }

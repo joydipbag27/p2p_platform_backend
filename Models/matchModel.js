@@ -53,6 +53,14 @@ const matchSchema = new mongoose.Schema({
   requesterCancelled: {
     type: Boolean,
     default: false
+  },
+  requesterUnread: {
+    type: Number,
+    default: 0
+  },
+  accepterUnread: {
+    type: Number,
+    default: 0
   }
 },
 {

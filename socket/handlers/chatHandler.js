@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Match } from "../../models/matchModel.js";
 import { Chat } from "../../models/chatModel.js";
+import { is } from "zod/locales";
 
 export const registerChatHandler = (io, socket) => {
   socket.on("joinRoom", async (matchId, callback) => {
@@ -29,6 +30,23 @@ export const registerChatHandler = (io, socket) => {
         callback({
           success: true,
         });
+
+        const room = io.sockets.adapter.rooms.get(matchId);
+
+        console.log("ROOM:", room);
+        console.log("ROOM SIZE:", room?.size);
+
+        if (matchInfo.requester.toString() === socket.user.id.toString()) {
+          await Match.findByIdAndUpdate(matchId, {
+            $set: { requesterUnread: 0 },
+          });
+        } else if (
+          matchInfo.accepter.toString() === socket.user.id.toString()
+        ) {
+          await Match.findByIdAndUpdate(matchId, {
+            $set: { accepterUnread: 0 },
+          });
+        }
       } else {
         return callback({
           success: false,
@@ -41,6 +59,15 @@ export const registerChatHandler = (io, socket) => {
         error: "Unable to join room",
       });
     }
+  });
+
+  socket.on("leaveRoom", (matchId) => {
+    socket.leave(matchId);
+
+    const room = io.sockets.adapter.rooms.get(matchId);
+
+    console.log("ROOM:", room);
+    console.log("ROOM SIZE:", room?.size);
   });
 };
 
@@ -83,6 +110,32 @@ export const sendMessage = (io, socket) => {
         });
       }
 
+      const room = io.sockets.adapter.rooms.get(matchId);
+
+      console.log("ROOM:", room);
+      console.log("ROOM SIZE:", room?.size);
+
+      const roomSockets = io.sockets.adapter.rooms.get(matchId);
+      const roomSize = roomSockets.size;
+
+      if (roomSize <= 1) {
+        if (matchInfo.requester.toString() === socket.user.id.toString()) {
+          await Match.findByIdAndUpdate(matchId, {
+            $inc: {
+              accepterUnread: 1,
+            },
+          });
+        } else if (
+          matchInfo.accepter.toString() === socket.user.id.toString()
+        ) {
+          await Match.findByIdAndUpdate(matchId, {
+            $inc: {
+              requesterUnread: 1,
+            },
+          });
+        }
+      }
+
       const chat = await Chat.create({
         matchId,
         sender: socket.user.id,
@@ -90,6 +143,11 @@ export const sendMessage = (io, socket) => {
       });
 
       io.to(matchId).emit("newMessage", chat);
+
+      const recipientId = matchInfo.requester.toString() === socket.user.id.toString()
+        ? matchInfo.accepter.toString()
+        : matchInfo.requester.toString();
+      io.to(`user:${recipientId}`).emit("newMessage", chat);
 
       return callback({
         success: true,

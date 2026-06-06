@@ -10,17 +10,17 @@ export const getNotifications = async (req, res) => {
     );
 
     if (notifications.length === 0) {
-      successResponse(res, 200, "You have no new notifications");
+      return successResponse(res, 200, "You have no new notifications");
     }
 
-    successResponse(
+    return successResponse(
       res,
       200,
       "Notification fetched successfully",
       notifications,
     );
   } catch (error) {
-    errorResponse(res, 500, "Failed to get notifications");
+    return errorResponse(res, 500, "Failed to get notifications");
   }
 };
 
@@ -32,9 +32,9 @@ export const unreadNotification = async (req, res) => {
       $set: { isRead: true },
     });
 
-    successResponse(res, 200, "Notification marked as read successfully");
+    return successResponse(res, 200, "Notification marked as read successfully");
   } catch (error) {
-    errorResponse(res, 500, "Failed to mark as read");
+    return errorResponse(res, 500, "Failed to mark as read");
   }
 };
 
@@ -47,9 +47,9 @@ export const unreadAllNotification = async (req, res) => {
       },
     );
 
-    successResponse(res, 200, "Notifications marked as read successfully");
+    return successResponse(res, 200, "Notifications marked as read successfully");
   } catch (error) {
-    errorResponse(res, 500, "Failed to mark as read");
+    return errorResponse(res, 500, "Failed to mark as read");
   }
 };
 
@@ -59,8 +59,8 @@ export const deleteNotifications = async (req, res) => {
       userId: req.user.id,
     });
 
-    successResponse(res, 200, "Notifications deleted successfully");
+    return successResponse(res, 200, "Notifications deleted successfully");
   } catch (error) {
-    errorResponse(res, 500, "Failed to delete notifications");
+    return errorResponse(res, 500, "Failed to delete notifications");
   }
 };

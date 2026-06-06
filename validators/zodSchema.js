@@ -32,16 +32,15 @@ export const exchangeRequestSchema = z.object({
     .number()
     .min(100, "Minimum amount is 100")
     .max(50000, "Maximum value is 50000"),
-  radius: z.coerce
-    .number()
-    .min(1, "Minimum radius is 1km")
-    .max(50, "Maximum radius is 50km")
-    .optional(),
   note: z.string().max(150, "Maximum note length reached").optional(),
   expiry: z.coerce
     .number()
     .min(5, "Minimum expiry is 5 minutes")
     .max(60, "Maximum expiry is 60 minutes"),
+  coordinates: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  }),
 });
 
 export const chatSchema = z.object({

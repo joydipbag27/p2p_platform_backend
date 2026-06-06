@@ -5,7 +5,10 @@ import { exchangeRequestSchema } from "../validators/zodSchema.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 import { io } from "../app.js";
 import { Notification } from "../models/notificationModel.js";
-import { NOTIFICATION_TITLES, NOTIFICATION_TYPES } from "../config/notificationTypes.js";
+import {
+  NOTIFICATION_TITLES,
+  NOTIFICATION_TYPES,
+} from "../config/notificationTypes.js";
 
 //CREATE EXCHANGE REQUEST
 export const createRequest = async (req, res) => {
@@ -29,19 +32,24 @@ export const createRequest = async (req, res) => {
     return errorResponse(res, 400, error.issues[0].message);
   }
 
-  const { type, amount, radius, note, expiry } = data;
+  const { type, amount, note, expiry, coordinates } = data;
 
   try {
     const request = await ExchangeRequest.create({
       creator: req.user.id,
       type,
       amount,
-      radius,
       note,
       expiresAt: new Date(Date.now() + 1000 * expiry * 60),
+      location: {
+        type: "Point",
+        coordinates: [coordinates.longitude, coordinates.latitude],
+      },
     });
 
-    const populatedRequest = await ExchangeRequest.findById(request._id).populate("creator", "username avatar");
+    const populatedRequest = await ExchangeRequest.findById(
+      request._id,
+    ).populate("creator", "username avatar");
 
     io.to("public-room").emit("newRequest", { request: populatedRequest });
 
@@ -90,7 +98,7 @@ export const cancelRequest = async (req, res) => {
       },
     });
 
-    io.to("public-room").emit("requestCancelled", {requestId})
+    io.to("public-room").emit("requestCancelled", { requestId });
 
     return successResponse(res, 200, "Exchange request cancelled successfully");
   } catch (error) {
@@ -102,6 +110,14 @@ export const cancelRequest = async (req, res) => {
 
 //GETTING ACTIVE PUBLIC REQUESTS
 export const getPublicRequests = async (req, res) => {
+  const lngNum = parseFloat(req.query.lng);
+  const latNum = parseFloat(req.query.lat);
+  const radiusNum = parseFloat(req.query.radius || 5);
+
+  if (isNaN(lngNum) || isNaN(latNum)) {
+    return errorResponse(res, 400, "Invalid coordinates provided");
+  }
+
   try {
     const acceptedRequestIds = await Match.find({
       accepter: req.user.id,
@@ -115,14 +131,23 @@ export const getPublicRequests = async (req, res) => {
       status: "ACTIVE",
       expiresAt: { $gt: new Date() },
       _id: { $nin: acceptedRequestIds },
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [lngNum, latNum],
+          },
+          $maxDistance: radiusNum * 1000
+        },
+      },
     }).populate("creator", "username avatar");
 
     if (requests.length === 0) {
       return errorResponse(
         res,
         200,
-        "Looks like no public requests there, please try after some time",
-        []
+        "Looks like no nearby public requests there, please try after some time",
+        [],
       );
     } else {
       return successResponse(

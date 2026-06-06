@@ -16,10 +16,6 @@ const exchangeRequestSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    radius: {
-      type: Number,
-      default: 5,
-    },
     note: {
       type: String,
       maxLength: 150,
@@ -34,11 +30,26 @@ const exchangeRequestSchema = new mongoose.Schema(
       type: Date,
     },
     completedAt: {
-      type:Date
-    }, 
+      type: Date,
+    },
     cancelledAt: {
-      type: Date
-    }
+      type: Date,
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        required: true,
+      },
+      coordinates: {
+        type: [Number],
+        required: true,
+        validate: {
+          validator: (arr) => arr.length === 2,
+          message: "Coordinates must contain longitude and latitude",
+        },
+      },
+    },
   },
   { timestamps: true, strict: "throw" },
 );
@@ -52,6 +63,8 @@ exchangeRequestSchema.index({
   status: 1,
   expiresAt: 1,
 });
+
+exchangeRequestSchema.index({ location: "2dsphere" });
 
 export const ExchangeRequest = mongoose.model(
   "exchangeRequest",

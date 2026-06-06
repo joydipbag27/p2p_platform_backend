@@ -3,7 +3,14 @@ import { ExchangeRequest } from "../models/exchangeRequestModel.js";
 import { Match } from "../models/matchModel.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 import { io } from "../app.js";
+import { User } from "../models/userModel.js";
+import {
+  NOTIFICATION_TITLES,
+  NOTIFICATION_TYPES,
+} from "../config/notificationTypes.js";
+import { Notification } from "../models/notificationModel.js";
 
+//OFFER CREATED BY A USER
 export const createMatch = async (req, res) => {
   const { requestId } = req.params;
 
@@ -48,7 +55,10 @@ export const createMatch = async (req, res) => {
   }
 
   try {
+    const matchId = new mongoose.Types.ObjectId();
+
     const matchInfo = await Match.create({
+      _id: matchId,
       request: requestId,
       requester: exchangeReqInfo.creator,
       accepter: req.user.id,
@@ -57,16 +67,31 @@ export const createMatch = async (req, res) => {
       accepterConfirmed: true,
     });
 
+    //SOCKET
     io.to(`user:${exchangeReqInfo.creator}`).emit("newMatch", {
       match: matchInfo,
     });
 
+    //NOTIFICATION
+    await Notification.create({
+      userId: exchangeReqInfo.creator,
+      type: NOTIFICATION_TYPES.OFFER_RECEIVED,
+      title: NOTIFICATION_TITLES.OFFER_RECEIVED,
+      message: `${req.user.username} offered to help with your ₹${exchangeReqInfo.amount} request`,
+      metaData: {
+        requestId,
+        matchId,
+      },
+    });
+
     return successResponse(res, 200, "Match created successfully", matchInfo);
   } catch (error) {
+    console.log(error);
     return errorResponse(res, 500, "Failed to create match");
   }
 };
 
+//OFFER ACCEPTED
 export const confirmMatch = async (req, res) => {
   const { matchId } = req.params;
 
@@ -87,6 +112,12 @@ export const confirmMatch = async (req, res) => {
 
   if (matchInfo.requesterConfirmed) {
     return errorResponse(res, 400, "Match already confirmed");
+  }
+
+  const exchangeReqInfo = await ExchangeRequest.findById(matchInfo.request);
+
+  if (!exchangeReqInfo) {
+    return errorResponse(res, 400, "Failed to get exchange request");
   }
 
   try {
@@ -112,9 +143,23 @@ export const confirmMatch = async (req, res) => {
       { $unset: { expiresAt: 1 } },
     );
 
+    //SOCKET
     io.to(`user:${matchInfo.accepter}`).emit("confirmMatch", {
       matchId,
       success: true,
+    });
+
+    io.to("public-room").emit("requestCancelled", { requestId: matchInfo.request });
+
+    //NOTIFICATION
+    await Notification.create({
+      userId: matchInfo.accepter,
+      type: NOTIFICATION_TYPES.OFFER_ACCEPTED,
+      title: NOTIFICATION_TITLES.OFFER_ACCEPTED,
+      message: `Your offer for ₹${exchangeReqInfo.amount} has been accepted. You can now start chatting`,
+      metaData: {
+        matchId,
+      },
     });
 
     return successResponse(res, 200, "Match confirmed successfully");
@@ -123,6 +168,7 @@ export const confirmMatch = async (req, res) => {
   }
 };
 
+//OFFER REJECTED
 export const rejectMatch = async (req, res) => {
   const { matchId } = req.params;
 
@@ -144,15 +190,34 @@ export const rejectMatch = async (req, res) => {
   if (matchInfo.requesterConfirmed) {
     return errorResponse(res, 404, "Match already confirmed");
   }
+
+  const exchangeReqInfo = await ExchangeRequest.findById(matchInfo.request);
+
+  if (!exchangeReqInfo) {
+    return errorResponse(res, 400, "Failed to get exchange request");
+  }
+
   try {
     const updatedMatch = await Match.findOneAndUpdate(
       { _id: matchInfo._id },
       { $set: { status: "CANCELLED" } },
     );
 
+    //SOCKET
     io.to(`user:${matchInfo.accepter}`).emit("rejectMatch", {
       matchId,
       success: true,
+    });
+
+    //NOTIFICATION
+    await Notification.create({
+      userId: matchInfo.accepter,
+      type: NOTIFICATION_TYPES.OFFER_REJECTED,
+      title: NOTIFICATION_TITLES.OFFER_REJECTED,
+      message: `Your offer for ₹${exchangeReqInfo.amount} was declined`,
+      metaData: {
+        matchId,
+      },
     });
 
     return successResponse(res, 200, "Match rejected successfully");
@@ -161,6 +226,7 @@ export const rejectMatch = async (req, res) => {
   }
 };
 
+//SWAP COMPLETED
 export const completeMatch = async (req, res) => {
   const { matchId } = req.params;
 
@@ -182,15 +248,16 @@ export const completeMatch = async (req, res) => {
 
   const exchangeReqInfo = await ExchangeRequest.findOne({
     _id: matchInfo.request,
-    status: {$in: ["MATCHED", "COMPLETED"]},
+    status: "MATCHED",
   });
 
   if (!exchangeReqInfo) {
     return errorResponse(res, 400, "You don't have a matched exchange request");
   }
 
+  const userId = (req.user.id._id || req.user.id).toString();
   let requester = false;
-  if (matchInfo.requester.toString() === req.user.id.toString()) {
+  if (matchInfo.requester.toString() === userId) {
     requester = true;
   }
 
@@ -232,7 +299,10 @@ export const completeMatch = async (req, res) => {
     if (refreshedMatch.accepterCompleted && refreshedMatch.requesterCompleted) {
       await matchInfo.updateOne({ status: "COMPLETED" });
 
-      
+      await exchangeReqInfo.updateOne({
+        $set: { status: "COMPLETED", completedAt: new Date() },
+      });
+
       io.to(`user:${matchInfo.accepter}`).emit("completeMatch", {
         matchId,
         completedCount: 2,
@@ -242,6 +312,27 @@ export const completeMatch = async (req, res) => {
         matchId,
         completedCount: 2,
         totalCount: 2,
+      });
+
+      //NOTIFICATION
+      await Notification.create({
+        userId: matchInfo.accepter,
+        type: NOTIFICATION_TYPES.SWAP_COMPLETED,
+        title: NOTIFICATION_TITLES.SWAP_COMPLETED,
+        message: `Your ₹${exchangeReqInfo.amount} swap has been completed successfully`,
+        metaData: {
+          matchId,
+        },
+      });
+
+      await Notification.create({
+        userId: matchInfo.requester,
+        type: NOTIFICATION_TYPES.SWAP_COMPLETED,
+        title: NOTIFICATION_TITLES.SWAP_COMPLETED,
+        message: `Your ₹${exchangeReqInfo.amount} swap has been completed successfully`,
+        metaData: {
+          matchId,
+        },
       });
     } else {
       io.to(`user:${matchInfo.accepter}`).emit("completeMatch", {
@@ -254,11 +345,28 @@ export const completeMatch = async (req, res) => {
         completedCount: 1,
         totalCount: 2,
       });
-    }
 
-    await exchangeReqInfo.updateOne({
-      $set: { status: "COMPLETED", completedAt: new Date() },
-    });
+      //NOTIFICATION
+      await Notification.create({
+        userId: matchInfo.accepter,
+        type: NOTIFICATION_TYPES.SWAP_COMPLETED,
+        title: NOTIFICATION_TITLES.SWAP_COMPLETED,
+        message: `Your ₹${exchangeReqInfo.amount} swap has been partially completed`,
+        metaData: {
+          matchId,
+        },
+      });
+
+      await Notification.create({
+        userId: matchInfo.requester,
+        type: NOTIFICATION_TYPES.SWAP_COMPLETED,
+        title: NOTIFICATION_TITLES.SWAP_COMPLETED,
+        message: `Your ₹${exchangeReqInfo.amount} swap has been partially completed`,
+        metaData: {
+          matchId,
+        },
+      });
+    }
 
     return successResponse(
       res,
@@ -270,6 +378,7 @@ export const completeMatch = async (req, res) => {
   }
 };
 
+//SWAP MARKED AS CANCELLED
 export const cancelActiveMatch = async (req, res) => {
   const { matchId } = req.params;
 
@@ -298,8 +407,9 @@ export const cancelActiveMatch = async (req, res) => {
     return errorResponse(res, 400, "You don't have a matched exchange request");
   }
 
+  const userId = (req.user.id._id || req.user.id).toString();
   let requester = false;
-  if (matchInfo.requester.toString() === req.user.id) {
+  if (matchInfo.requester.toString() === userId) {
     requester = true;
   }
 
@@ -327,12 +437,21 @@ export const cancelActiveMatch = async (req, res) => {
       },
     };
 
-    io.to(`user:${matchInfo.accepter}`).emit(
-      "cancelActiveMatch",
-      {
-        matchId, success: true
+    io.to(`user:${matchInfo.accepter}`).emit("cancelActiveMatch", {
+      matchId,
+      success: true,
+    });
+
+    //NOTIFICATION
+    await Notification.create({
+      userId: matchInfo.accepter,
+      type: NOTIFICATION_TYPES.OFFER_REJECTED,
+      title: NOTIFICATION_TITLES.OFFER_REJECTED,
+      message: `The ongoing swap was cancelled `,
+      metaData: {
+        matchId,
       },
-    );
+    });
   } else {
     matchUpdateQuery = {
       $set: {
@@ -342,12 +461,21 @@ export const cancelActiveMatch = async (req, res) => {
       },
     };
 
-    io.to(`user:${matchInfo.requester}`).emit(
-      "cancelActiveMatch",
-      {
-        matchId, success: true
+    io.to(`user:${matchInfo.requester}`).emit("cancelActiveMatch", {
+      matchId,
+      success: true,
+    });
+
+    //NOTIFICATION
+    await Notification.create({
+      userId: matchInfo.requester,
+      type: NOTIFICATION_TYPES.OFFER_REJECTED,
+      title: NOTIFICATION_TITLES.OFFER_REJECTED,
+      message: `The ongoing swap was cancelled`,
+      metaData: {
+        matchId,
       },
-    );
+    });
   }
   try {
     await matchInfo.updateOne(matchUpdateQuery);

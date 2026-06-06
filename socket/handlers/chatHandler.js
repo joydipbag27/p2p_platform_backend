@@ -31,11 +31,6 @@ export const registerChatHandler = (io, socket) => {
           success: true,
         });
 
-        const room = io.sockets.adapter.rooms.get(matchId);
-
-        console.log("ROOM:", room);
-        console.log("ROOM SIZE:", room?.size);
-
         if (matchInfo.requester.toString() === socket.user.id.toString()) {
           await Match.findByIdAndUpdate(matchId, {
             $set: { requesterUnread: 0 },
@@ -63,11 +58,6 @@ export const registerChatHandler = (io, socket) => {
 
   socket.on("leaveRoom", (matchId) => {
     socket.leave(matchId);
-
-    const room = io.sockets.adapter.rooms.get(matchId);
-
-    console.log("ROOM:", room);
-    console.log("ROOM SIZE:", room?.size);
   });
 };
 
@@ -109,11 +99,6 @@ export const sendMessage = (io, socket) => {
           error: "Unauthorized",
         });
       }
-
-      const room = io.sockets.adapter.rooms.get(matchId);
-
-      console.log("ROOM:", room);
-      console.log("ROOM SIZE:", room?.size);
 
       const roomSockets = io.sockets.adapter.rooms.get(matchId);
       const roomSize = roomSockets.size;

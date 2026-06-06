@@ -8,7 +8,10 @@ export const checkAuth = async (req, res, next) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const session = await Session.findById(sid);
+    const session = await Session.findById(sid).populate(
+      "userId",
+      "username email trustScore",
+    );
 
     if (!session) {
       res.clearCookie("sid", { httpOnly: true });
@@ -17,6 +20,9 @@ export const checkAuth = async (req, res, next) => {
 
     req.user = {
       id: session.userId,
+      username: session.userId.username,
+      email: session.userId.email,
+      trustScore: session.userId.trustScore,
     };
 
     next();

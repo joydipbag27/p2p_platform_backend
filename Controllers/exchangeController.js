@@ -4,6 +4,8 @@ import { Match } from "../models/matchModel.js";
 import { exchangeRequestSchema } from "../validators/zodSchema.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 import { io } from "../app.js";
+import { Notification } from "../models/notificationModel.js";
+import { NOTIFICATION_TITLES, NOTIFICATION_TYPES } from "../config/notificationTypes.js";
 
 //CREATE EXCHANGE REQUEST
 export const createRequest = async (req, res) => {
@@ -39,7 +41,9 @@ export const createRequest = async (req, res) => {
       expiresAt: new Date(Date.now() + 1000 * expiry * 60),
     });
 
-    io.to("public-room").emit("newRequest", {request})
+    const populatedRequest = await ExchangeRequest.findById(request._id).populate("creator", "username avatar");
+
+    io.to("public-room").emit("newRequest", { request: populatedRequest });
 
     return successResponse(res, 200, "Exchange request created successfully");
   } catch (error) {

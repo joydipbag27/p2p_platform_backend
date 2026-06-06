@@ -12,6 +12,7 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { initializeSocket } from "./socket/index.js";
 import { socketAuth } from "./socket/middlewares/socketMiddleware.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config({
   path: ".env.local",
@@ -30,7 +31,7 @@ export const io = new Server(server, {
   },
 });
 
-io.use(socketAuth)
+io.use(socketAuth);
 initializeSocket(io);
 
 app.use(express.json());
@@ -46,6 +47,7 @@ app.use("/user", userRoutes);
 app.use("/exchange", checkAuth, exchangeRoutes);
 app.use("/match", checkAuth, matchRoutes);
 app.use("/chat", checkAuth, chatRoutes);
+app.use("/notification", checkAuth, notificationRoutes);
 
 server.listen(process.env.PORT, () => {
   console.log(`App is running on port ${process.env.PORT}`);

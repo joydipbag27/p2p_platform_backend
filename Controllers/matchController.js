@@ -149,7 +149,9 @@ export const confirmMatch = async (req, res) => {
       success: true,
     });
 
-    io.to("public-room").emit("requestCancelled", { requestId: matchInfo.request });
+    io.to("public-room").emit("requestCancelled", {
+      requestId: matchInfo.request,
+    });
 
     //NOTIFICATION
     await Notification.create({
@@ -495,43 +497,76 @@ export const cancelActiveMatch = async (req, res) => {
 };
 
 export const viewActiveMatch = async (req, res) => {
-  const matchInfo = await Match.find({
-    $or: [{ requester: req.user.id }, { accepter: req.user.id }],
-    status: "ACTIVE",
-  })
-    .populate("requester", "username avatar trustScore")
-    .populate("accepter", "username avatar trustScore")
-    .populate("request");
+  try {
+    const matchInfo = await Match.find({
+      $or: [{ requester: req.user.id }, { accepter: req.user.id }],
+      status: "ACTIVE",
+    })
+      .populate("requester", "username avatar trustScore")
+      .populate("accepter", "username avatar trustScore")
+      .populate("request");
 
-  if (matchInfo.length === 0) {
-    return errorResponse(res, 404, "No match found");
+    if (matchInfo.length === 0) {
+      return successResponse(res, 200, "No active match found");
+    }
+
+    return successResponse(
+      res,
+      200,
+      "Active matches fetched successfully",
+      matchInfo,
+    );
+  } catch (error) {
+    errorResponse(res, 500, "Failed to fetch active matches");
   }
-
-  return successResponse(
-    res,
-    200,
-    "Active matches fetched successfully",
-    matchInfo,
-  );
 };
 
 export const viewPendingMatch = async (req, res) => {
-  const matchInfo = await Match.find({
-    requester: req.user.id,
-    status: "PENDING",
-  })
-    .populate("requester", "username avatar")
-    .populate("accepter", "username avatar")
-    .populate("request");
+  try {
+    const matchInfo = await Match.find({
+      requester: req.user.id,
+      status: "PENDING",
+    })
+      .populate("requester", "username avatar")
+      .populate("accepter", "username avatar")
+      .populate("request");
 
-  if (matchInfo.length === 0) {
-    return errorResponse(res, 404, "No match found");
+    if (matchInfo.length === 0) {
+      return successResponse(res, 200, "No pending match found");
+    }
+
+    return successResponse(
+      res,
+      200,
+      "Active matches fetched successfully",
+      matchInfo,
+    );
+  } catch (error) {
+    errorResponse(res, 500, "Failed to fetch pending matches");
   }
+};
 
-  return successResponse(
-    res,
-    200,
-    "Active matches fetched successfully",
-    matchInfo,
-  );
+export const viewMatchHistory = async (req, res) => {
+  try {
+    const matchInfo = await Match.find({
+      $or: [{ requester: req.user.id }, { accepter: req.user.id }],
+      status: { $in: ["COMPLETED", "CANCELLED"] },
+    })
+      .populate("requester", "username avatar")
+      .populate("accepter", "username avatar")
+      .populate("request");
+
+    if (matchInfo.length === 0) {
+      return successResponse(res, 200, "No history found", []);
+    }
+
+    return successResponse(
+      res,
+      200,
+      "Active matches fetched successfully",
+      matchInfo,
+    );
+  } catch (error) {
+    return errorResponse(res, 500, "Failed to fetch match history");
+  }
 };

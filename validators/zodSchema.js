@@ -50,3 +50,15 @@ export const chatSchema = z.object({
     .min(1, "Chat length must be 1 character")
     .max(300, "Chat length can't exceed 300 characters"),
 });
+
+export const reviewSchema = z.object({
+  comment: z
+    .string()
+    .trim()
+    .max(500, "Review comment can't exceed 500 characters")
+    .optional(),
+  rating: z.coerce
+    .number()
+    .max(5, "Rating maximum value is 5")
+    .min(1, "Rating minimum value is 1"),
+});

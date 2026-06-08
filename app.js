@@ -13,6 +13,7 @@ import { Server } from "socket.io";
 import { initializeSocket } from "./socket/index.js";
 import { socketAuth } from "./socket/middlewares/socketMiddleware.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js"
 
 dotenv.config({
   path: ".env.local",
@@ -48,6 +49,7 @@ app.use("/exchange", checkAuth, exchangeRoutes);
 app.use("/match", checkAuth, matchRoutes);
 app.use("/chat", checkAuth, chatRoutes);
 app.use("/notification", checkAuth, notificationRoutes);
+app.use("/reviews",checkAuth, reviewRoutes)
 
 server.listen(process.env.PORT, () => {
   console.log(`App is running on port ${process.env.PORT}`);

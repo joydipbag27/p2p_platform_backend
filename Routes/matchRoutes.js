@@ -6,6 +6,7 @@ import {
   createMatch,
   rejectMatch,
   viewActiveMatch,
+  viewMatchHistory,
   viewPendingMatch,
   
 } from "../controllers/matchController.js";
@@ -17,6 +18,8 @@ router.post("/accept/:requestId", createMatch);
 router.get("/active", viewActiveMatch);
 
 router.get("/pending", viewPendingMatch)
+
+router.get("/history", viewMatchHistory)
 
 router.patch("/confirm/:matchId", confirmMatch);
 

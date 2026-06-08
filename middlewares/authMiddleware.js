@@ -19,7 +19,7 @@ export const checkAuth = async (req, res, next) => {
     }
 
     req.user = {
-      id: session.userId,
+      id: session.userId._id,
       username: session.userId.username,
       email: session.userId.email,
       trustScore: session.userId.trustScore,

@@ -61,6 +61,14 @@ const matchSchema = new mongoose.Schema({
   accepterUnread: {
     type: Number,
     default: 0
+  },
+  accepterReviewed: {
+    type: Boolean,
+    default: false
+  },
+  requesterReviewed: {
+    type: Boolean,
+    default: false
   }
 },
 {

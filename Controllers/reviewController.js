@@ -89,7 +89,7 @@ export const createReview = async (req, res) => {
     { _id: reviewedUser },
     {
       $set: {
-        trustScore: stats[0].averageRating,
+        trustScore: stats[0].averageRating.toFixed(2),
         totalReviews: stats[0].totalReviews,
       },
     },

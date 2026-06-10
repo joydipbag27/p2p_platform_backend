@@ -563,10 +563,12 @@ export const viewMatchHistory = async (req, res) => {
     return successResponse(
       res,
       200,
-      "Active matches fetched successfully",
+      "Matches history fetched successfully",
       matchInfo,
     );
   } catch (error) {
     return errorResponse(res, 500, "Failed to fetch match history");
   }
 };
+
+

@@ -4,6 +4,7 @@ import { User } from "../models/userModel.js";
 import { loginSchema, registerSchema } from "../validators/zodSchema.js";
 import bcrypt from "bcrypt";
 import { errorResponse, successResponse } from "../utils/response.js";
+import { Review } from "../models/reviewModel.js";
 
 export const emailRegister = async (req, res) => {
   const { success, data, error } = registerSchema.safeParse(req.body);
@@ -57,7 +58,7 @@ export const emailLogin = async (req, res) => {
 
   const userSession = await Session.find({ userId: userInfo._id });
 
-  if (userSession.length >= 2) {
+  if (userSession.length >= 1) {
     await Session.findByIdAndDelete(userSession[0]._id);
   }
 
@@ -96,5 +97,63 @@ export const getUser = async (req, res) => {
   } catch (error) {
     console.error(error);
     return errorResponse(res, 400, "Failed to get user info");
+  }
+};
+
+export const getOthersProfile = async (req, res) => {
+  const { userId } = req.params;
+
+  if (!mongoose.isValidObjectId(userId)) {
+    return errorResponse(res, 400, "Invalid user ID");
+  }
+
+  try {
+    const userInfo = await User.findById(userId).select("-password");
+
+    if (!userInfo) {
+      return errorResponse(res, 400, "User not found");
+    }
+
+    const reviews = await Review.find({ reviewedUser: userId })
+      .select("-matchId")
+      .populate("reviewer", "username avatar trustScore totalReviews")
+      .populate("reviewedUser", "username avatar trustScore totalReviews")
+      .limit(10)
+      .sort({ createdAt: -1 });
+
+    const payload = {
+      username: userInfo.username,
+      avatar: userInfo.avatar,
+      trustScore: userInfo.trustScore,
+      totalReviews: userInfo.totalReviews,
+      createdAt: userInfo.createdAt,
+      recentReviews: reviews,
+    };
+
+    return successResponse(res, 200, "User info fetched successfully", payload);
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, 500, "Failed to get user info");
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    const userInfo = await User.findById(req.user.id);
+
+    if (!userInfo) {
+      return errorResponse(res, 400, "User not found");
+    }
+
+    const sessions = await Session.deleteMany({ userId: req.user.id });
+
+    res.clearCookie("sid", {
+      httpOnly: true,
+    });
+
+    return successResponse(res, 200, "Logout completed successfully");
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, 500, "Failed to logout");
   }
 };

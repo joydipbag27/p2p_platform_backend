@@ -9,24 +9,9 @@ import {
   NOTIFICATION_TITLES,
   NOTIFICATION_TYPES,
 } from "../config/notificationTypes.js";
-import { paginate } from "../utils/paginationHelper.js";
 
 //CREATE EXCHANGE REQUEST
 export const createRequest = async (req, res) => {
-  const existingExchangeReq = await ExchangeRequest.findOne({
-    creator: req.user.id,
-    status: { $in: ["ACTIVE", "MATCHED"] },
-    expiresAt: { $gt: new Date() },
-  });
-
-  if (existingExchangeReq) {
-    return errorResponse(
-      res,
-      400,
-      "You already have a active or matched exchange request",
-    );
-  }
-
   const { success, data, error } = exchangeRequestSchema.safeParse(req.body);
 
   if (!success) {
@@ -34,6 +19,38 @@ export const createRequest = async (req, res) => {
   }
 
   const { type, amount, note, expiry, coordinates } = data;
+
+  const existingExchangeReq = await ExchangeRequest.findOne({
+    creator: req.user.id,
+    status: "ACTIVE",
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (existingExchangeReq) {
+    return errorResponse(
+      res,
+      400,
+      "You already have a active exchange request",
+    );
+  }
+
+  const blockingMatch = await Match.findOne({
+    status: "ACTIVE",
+    $or: [
+      {
+        requester: req.user.id,
+        requesterCompleted: false,
+      },
+      {
+        accepter: req.user.id,
+        accepterCompleted: false,
+      },
+    ],
+  });
+
+  if (blockingMatch) {
+    return errorResponse(res, 400, "You already have a uncompleted match ");
+  }
 
   try {
     const request = await ExchangeRequest.create({
@@ -127,8 +144,30 @@ export const getPublicRequests = async (req, res) => {
       },
     }).distinct("request");
 
+    const activeMatches = await Match.find({
+      status: {
+        $in: ["ACTIVE", "PENDING"],
+      },
+      $or: [
+        {
+          requester: req.user.id,
+        },
+        {
+          accepter: req.user.id,
+        },
+      ],
+    }).select("requester accepter");
+
+    const blockedUserIds = activeMatches.map((elem) => {
+      if (elem.requester.toString() === req.user.id.toString()) {
+        return elem.accepter;
+      }
+
+      return elem.request;
+    });
+
     const requests = await ExchangeRequest.find({
-      creator: { $ne: req.user.id },
+      creator: { $nin: [...blockedUserIds, req.user.id] },
       status: "ACTIVE",
       expiresAt: { $gt: new Date() },
       _id: { $nin: acceptedRequestIds },
@@ -141,15 +180,10 @@ export const getPublicRequests = async (req, res) => {
           $maxDistance: radiusNum * 1000,
         },
       },
-    }).populate("creator", "username avatar");
+    }).populate("creator", "username avatar totalReviews trustScore");
 
     if (requests.length === 0) {
-      return errorResponse(
-        res,
-        200,
-        "Looks like no nearby public requests there, please try after some time",
-        [],
-      );
+      return errorResponse(res, 200, "No nearby requests found", []);
     } else {
       return successResponse(
         res,
@@ -191,8 +225,7 @@ export const getMyRequests = async (req, res) => {
       requests.pop();
     }
 
-    const nextCursor =
-      hasMore ? requests[requests.length - 1]._id : null;
+    const nextCursor = hasMore ? requests[requests.length - 1]._id : null;
 
     if (requests.length === 0) {
       return errorResponse(res, 400, "You don't have any requests");
@@ -205,16 +238,11 @@ export const getMyRequests = async (req, res) => {
         }
       });
 
-      return successResponse(
-        res,
-        200,
-        "Own requests fetched successfully",
-        {
-          requests: updatedReq,
-          hasMore,
-          nextCursor
-        }
-      );
+      return successResponse(res, 200, "Own requests fetched successfully", {
+        requests: updatedReq,
+        hasMore,
+        nextCursor,
+      });
     }
   } catch (error) {
     return errorResponse(res, 400, "Failed to get requests");

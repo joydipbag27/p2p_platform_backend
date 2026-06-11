@@ -590,3 +590,35 @@ export const viewMatchHistory = async (req, res) => {
     return errorResponse(res, 500, "Failed to fetch match history");
   }
 };
+
+export const getCompletedCounter = async (req, res) => {
+  try {
+    const countData = await Match.countDocuments({
+      $or: [{ requester: req.user.id }, { accepter: req.user.id }],
+      status: "COMPLETED",
+    });
+
+    return successResponse(res, 200, "Data fetched successfully", {
+      counter: countData,
+    });
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, 500, "Failed to get data");
+  }
+};
+
+export const getCancelledCounter = async (req, res) => {
+  try {
+    const countData = await Match.countDocuments({
+      $or: [{ requester: req.user.id }, { accepter: req.user.id }],
+      status: "CANCELLED",
+    });
+
+    return successResponse(res, 200, "Data fetched successfully", {
+      counter: countData,
+    });
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, 500, "Failed to get data");
+  }
+};

@@ -4,6 +4,8 @@ import {
   completeMatch,
   confirmMatch,
   createMatch,
+  getCancelledCounter,
+  getCompletedCounter,
   rejectMatch,
   viewActiveMatch,
   viewMatchHistory,
@@ -28,6 +30,10 @@ router.patch("/reject/:matchId", rejectMatch);
 router.patch("/complete/:matchId", completeMatch)
  
 router.patch("/cancel/:matchId", cancelActiveMatch)
+
+router.get("/complete/counter", getCompletedCounter)
+
+router.get("/cancel/counter", getCancelledCounter)
 
 
 export default router;

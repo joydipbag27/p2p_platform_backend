@@ -2,23 +2,45 @@ import { Notification } from "../models/notificationModel.js";
 import { errorResponse, successResponse } from "../utils/response.js";
 
 export const getNotifications = async (req, res) => {
-  try {
-    const notifications = await Notification.find({ userId: req.user.id }).sort(
-      {
-        createdAt: -1,
-      },
-    );
+  const { cursor } = req.query;
+  const limit = 10;
 
-    if (notifications.length === 0) {
+  const query = {
+    userId: req.user.id,
+  };
+
+  if (cursor) {
+    query._id = {
+      $lt: cursor,
+    };
+  }
+
+  try {
+    const notificationData = await Notification.find(query)
+      .sort({
+        _id: -1,
+      })
+      .limit(limit + 1)
+      .lean();
+
+    if (notificationData.length === 0) {
       return successResponse(res, 200, "You have no new notifications");
     }
+    const hasMore = notificationData.length > limit;
 
-    return successResponse(
-      res,
-      200,
-      "Notification fetched successfully",
-      notifications,
-    );
+    if (hasMore) {
+      notificationData.pop();
+    }
+
+    const nextCursor = hasMore
+      ? notificationData[notificationData.length - 1]._id
+      : null;
+
+    return successResponse(res, 200, "Notification fetched successfully", {
+      notifications: notificationData,
+      hasMore,
+      nextCursor,
+    });
   } catch (error) {
     return errorResponse(res, 500, "Failed to get notifications");
   }
@@ -32,7 +54,11 @@ export const unreadNotification = async (req, res) => {
       $set: { isRead: true },
     });
 
-    return successResponse(res, 200, "Notification marked as read successfully");
+    return successResponse(
+      res,
+      200,
+      "Notification marked as read successfully",
+    );
   } catch (error) {
     return errorResponse(res, 500, "Failed to mark as read");
   }
@@ -47,7 +73,11 @@ export const unreadAllNotification = async (req, res) => {
       },
     );
 
-    return successResponse(res, 200, "Notifications marked as read successfully");
+    return successResponse(
+      res,
+      200,
+      "Notifications marked as read successfully",
+    );
   } catch (error) {
     return errorResponse(res, 500, "Failed to mark as read");
   }
@@ -62,5 +92,21 @@ export const deleteNotifications = async (req, res) => {
     return successResponse(res, 200, "Notifications deleted successfully");
   } catch (error) {
     return errorResponse(res, 500, "Failed to delete notifications");
+  }
+};
+
+export const getUnreadcounter = async (req, res) => {
+  try {
+    const unreadCounter = await Notification.countDocuments({
+      userId: req.user.id,
+      isRead: false,
+    });
+
+    return successResponse(res, 200, "Unread counter fetched successfully", {
+      unreadCounter,
+    });
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, 500, "Failed to get notification counter");
   }
 };

@@ -110,6 +110,18 @@ export const createReview = async (req, res) => {
 
 export const getReviews = async (req, res) => {
   const { userId } = req.params;
+  const { cursor } = req.query;
+  const limit = 10;
+
+  const query = {
+    reviewedUser: userId,
+  };
+
+  if (cursor) {
+    query._id = {
+      $lt: cursor,
+    };
+  }
 
   if (!mongoose.isValidObjectId(userId)) {
     return errorResponse(res, 400, "Invalid match ID");
@@ -121,43 +133,77 @@ export const getReviews = async (req, res) => {
     return errorResponse(res, 400, "User not found");
   }
 
-  const reviews = await Review.find({ reviewedUser: userId })
-    .select("-matchId")
-    .populate("reviewer", "username avatar")
-    .populate("reviewedUser", "username avatar")
-    .sort({ createdAt: -1 });
+  try {
+    const reviewsData = await Review.find(query)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .select("-matchId")
+      .populate("reviewer", "username avatar")
+      .populate("reviewedUser", "username avatar");
 
-  const totalReviews = reviews.length;
+    if (reviewsData.length === 0) {
+      return successResponse(res, 200, "This user has no review yet!!");
+    }
 
-  const averageRating =
-    totalReviews > 0
-      ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
-      : 0;
+    const hasMore = reviewsData.length > limit;
 
-  return successResponse(res, 200, "Reviews fetched", {
-    averageRating: Number(averageRating.toFixed(1)),
-    totalReviews,
-    reviews,
-  });
+    if (hasMore) {
+      reviewsData.pop();
+    }
+
+    const nextCursor = hasMore ? reviewsData[reviewsData.length - 1]._id : null;
+
+    return successResponse(res, 200, "Reviews fetched", {
+      averageRating: userInfo.trustScore,
+      totalReviews: userInfo.totalReviews,
+      reviews: reviewsData,
+      hasMore,
+      nextCursor,
+    });
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, 500, "Failed to get reviews");
+  }
 };
 
 export const getOwnReviews = async (req, res) => {
-  const reviews = await Review.find({ reviewedUser: req.user.id })
-    .populate("reviewer", "username avatar")
-    .populate("reviewedUser", "username avatar")
-    .populate("matchId")
-    .sort({ createdAt: -1 });
+  const { cursor } = req.query;
+  const limit = 10;
 
-  const totalReviews = reviews.length;
+  const query = {
+    reviewedUser: req.user.id,
+  };
 
-  const averageRating =
-    totalReviews > 0
-      ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
-      : 0;
+  if (cursor) {
+    query._id = {
+      $lt: cursor,
+    };
+  }
+  try {
+    const reviewData = await Review.find(query)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .populate("reviewer", "username avatar")
+      .populate("reviewedUser", "username avatar")
+      .populate("matchId");
 
-  return successResponse(res, 200, "Reviews fetched", {
-    averageRating: Number(averageRating.toFixed(1)),
-    totalReviews,
-    reviews,
-  });
+    const hasMore = reviewData.length > limit;
+
+    if (hasMore) {
+      reviewData.pop();
+    }
+
+    const nextCursor = hasMore ? reviewData[reviewData.length - 1]._id : null;
+
+    return successResponse(res, 200, "Reviews fetched", {
+      averageRating: req.user.trustScore,
+      totalReviews: req.user.totalReviews,
+      reviews: reviewData,
+      hasMore,
+      nextCursor,
+    });
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, 500, "Failed to get reviews");
+  }
 };

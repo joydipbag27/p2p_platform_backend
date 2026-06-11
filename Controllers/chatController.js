@@ -6,6 +6,18 @@ import { errorResponse, successResponse } from "../utils/response.js";
 
 export const getChat = async (req, res) => {
   const { matchId } = req.params;
+  const { cursor } = req.query;
+  const limit = 25;
+
+  const query = {
+    matchId,
+  };
+
+  if (cursor) {
+    query._id = {
+      $lt: cursor,
+    };
+  }
 
   if (!mongoose.isValidObjectId(matchId)) {
     return errorResponse(res, 400, error.issues[0].message);
@@ -22,12 +34,24 @@ export const getChat = async (req, res) => {
   }
 
   try {
-    const chatData = await Chat.find({ matchId })
-      .populate("sender", "username avatar trustScore totalReviews")
-      .sort({ createdAt: 1 })
-      .lean();
+    const chatData = await Chat.find(query)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .populate("sender", "username avatar trustScore totalReviews");
 
-    return successResponse(res, 200, "Chat fetched successfully", chatData);
+    const hasMore = chatData.length > limit;
+
+    if (hasMore) {
+      chatData.pop();
+    }
+
+    const nextCursor = hasMore ? chatData[chatData.length - 1]._id : null;
+
+    return successResponse(res, 200, "Chat fetched successfully", {
+      chats: chatData.reverse(),
+      hasMore,
+      nextCursor,
+    });
   } catch (error) {
     console.error(error);
     return errorResponse(res, 500, "Failed to send your message");
@@ -36,6 +60,18 @@ export const getChat = async (req, res) => {
 
 export const getChatHistories = async (req, res) => {
   const { matchId } = req.params;
+  const { cursor } = req.query;
+  const limit = 25;
+
+  const query = {
+    matchId,
+  };
+
+  if (cursor) {
+    query._id = {
+      $lt: cursor,
+    };
+  }
 
   if (!mongoose.isValidObjectId(matchId)) {
     return errorResponse(res, 400, error.issues[0].message);
@@ -52,12 +88,24 @@ export const getChatHistories = async (req, res) => {
   }
 
   try {
-    const chatData = await Chat.find({ matchId })
+    const chatData = await Chat.find(query)
       .populate("sender", "username avatar trustScore totalReviews")
-      .sort({ createdAt: 1 })
-      .lean();
+      .sort({ _id: -1 })
+      .limit(limit + 1);
 
-    return successResponse(res, 200, "Chat histories fetched successfully", chatData);
+    const hasMore = chatData.length > limit;
+
+    if (hasMore) {
+      chatData.pop();
+    }
+
+    const nextCursor = hasMore ? chatData[chatData.length - 1]._id : null;
+
+    return successResponse(res, 200, "Chat histories fetched successfully", {
+      chats: chatData.reverse(),
+      hasMore,
+      nextCursor,
+    });
   } catch (error) {
     console.error(error);
     return errorResponse(res, 500, "Failed to send your message");

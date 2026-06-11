@@ -32,7 +32,7 @@ export const exchangeRequestSchema = z.object({
     .number()
     .min(100, "Minimum amount is 100")
     .max(50000, "Maximum value is 50000"),
-  note: z.string().max(150, "Maximum note length reached").optional(),
+  note: z.string().max(150, "Maximum note length is 150 letters").optional(),
   expiry: z.coerce
     .number()
     .min(5, "Minimum expiry is 5 minutes")

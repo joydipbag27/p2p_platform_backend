@@ -9,6 +9,7 @@ import {
   NOTIFICATION_TITLES,
   NOTIFICATION_TYPES,
 } from "../config/notificationTypes.js";
+import { paginate } from "../utils/paginationHelper.js";
 
 //CREATE EXCHANGE REQUEST
 export const createRequest = async (req, res) => {
@@ -137,7 +138,7 @@ export const getPublicRequests = async (req, res) => {
             type: "Point",
             coordinates: [lngNum, latNum],
           },
-          $maxDistance: radiusNum * 1000
+          $maxDistance: radiusNum * 1000,
         },
       },
     }).populate("creator", "username avatar");
@@ -165,10 +166,33 @@ export const getPublicRequests = async (req, res) => {
 
 //GETTING ALL KINDS OF OWN REQUESTS
 export const getMyRequests = async (req, res) => {
+  const { cursor } = req.query;
+  const limit = 10;
+
+  const query = {
+    creator: req.user.id,
+  };
+
+  if (cursor) {
+    query._id = {
+      $lt: cursor,
+    };
+  }
+
   try {
-    const requests = await ExchangeRequest.find({
-      creator: req.user.id,
-    }).lean();
+    const requests = await ExchangeRequest.find(query)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .lean();
+
+    const hasMore = requests.length > limit;
+
+    if (hasMore) {
+      requests.pop();
+    }
+
+    const nextCursor =
+      hasMore ? requests[requests.length - 1]._id : null;
 
     if (requests.length === 0) {
       return errorResponse(res, 400, "You don't have any requests");
@@ -185,7 +209,11 @@ export const getMyRequests = async (req, res) => {
         res,
         200,
         "Own requests fetched successfully",
-        updatedReq,
+        {
+          requests: updatedReq,
+          hasMore,
+          nextCursor
+        }
       );
     }
   } catch (error) {

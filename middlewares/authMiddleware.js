@@ -23,6 +23,7 @@ export const checkAuth = async (req, res, next) => {
       username: session.userId.username,
       email: session.userId.email,
       trustScore: session.userId.trustScore,
+      totalReviews: session.userId.totalReviews
     };
 
     next();

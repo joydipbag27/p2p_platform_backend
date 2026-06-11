@@ -547,11 +547,24 @@ export const viewPendingMatch = async (req, res) => {
 };
 
 export const viewMatchHistory = async (req, res) => {
+  const { cursor } = req.query;
+  const limit = 10;
+
+  const query = {
+    $or: [{ requester: req.user.id }, { accepter: req.user.id }],
+    status: { $in: ["COMPLETED", "CANCELLED"] },
+  };
+
+  if (cursor) {
+    query._id = {
+      $lt: cursor,
+    };
+  }
+
   try {
-    const matchInfo = await Match.find({
-      $or: [{ requester: req.user.id }, { accepter: req.user.id }],
-      status: { $in: ["COMPLETED", "CANCELLED"] },
-    })
+    const matchInfo = await Match.find(query)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
       .populate("requester", "username avatar")
       .populate("accepter", "username avatar")
       .populate("request");
@@ -560,15 +573,20 @@ export const viewMatchHistory = async (req, res) => {
       return successResponse(res, 200, "No history found", []);
     }
 
-    return successResponse(
-      res,
-      200,
-      "Matches history fetched successfully",
-      matchInfo,
-    );
+    const hasMore = matchInfo.length > limit;
+
+    if (hasMore) {
+      matchInfo.pop();
+    }
+
+    const nextCursor = hasMore ? matchInfo[matchInfo.length - 1]._id : null;
+
+    return successResponse(res, 200, "Matches history fetched successfully", {
+      matches: matchInfo,
+      hasMore,
+      nextCursor,
+    });
   } catch (error) {
     return errorResponse(res, 500, "Failed to fetch match history");
   }
 };
-
-

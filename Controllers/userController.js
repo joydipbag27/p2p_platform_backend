@@ -1,10 +1,18 @@
 import mongoose from "mongoose";
 import { Session } from "../models/sessionModel.js";
 import { User } from "../models/userModel.js";
-import { loginSchema, registerSchema } from "../validators/zodSchema.js";
+import {
+  loginSchema,
+  registerSchema,
+  sendOtpSchema,
+  verifyOtpSchema,
+} from "../validators/zodSchema.js";
 import bcrypt from "bcrypt";
 import { errorResponse, successResponse } from "../utils/response.js";
 import { Review } from "../models/reviewModel.js";
+import { sendOtpFunc } from "../services/email/sendOtp.js";
+import { OTP } from "../models/otpModel.js";
+import crypto from "crypto";
 
 export const emailRegister = async (req, res) => {
   const { success, data, error } = registerSchema.safeParse(req.body);
@@ -14,6 +22,16 @@ export const emailRegister = async (req, res) => {
   }
 
   const { username, password, email } = data;
+
+  const isVerified = await OTP.findOne({
+    email,
+    purpose: "REGISTER",
+    isVerified: true,
+  });
+
+  if (!isVerified) {
+    return errorResponse(res, 403, "Please verify the email");
+  }
 
   const hashedPass = await bcrypt.hash(password, 10);
 
@@ -156,4 +174,85 @@ export const logout = async (req, res) => {
     console.log(error);
     return errorResponse(res, 500, "Failed to logout");
   }
+};
+
+export const sendOtp = async (req, res) => {
+  const { success, data, error } = sendOtpSchema.safeParse(req.body);
+
+  if (!success) {
+    console.log(error);
+    return errorResponse(res, 400, error.issues[0].message);
+  }
+
+  const { email, purpose } = data;
+
+  const otpStr = crypto.randomInt(100000, 999999).toString();
+
+  const existingOtp = await OTP.findOne({ email, purpose });
+
+  if (existingOtp) {
+    const now = Date.now();
+    const coolDownPeriod = Date.now(existingOtp.createdAt) + 1000 * 60;
+
+    if (now < coolDownPeriod) {
+      return errorResponse(
+        res,
+        400,
+        "Please wait before requesting another OTP",
+      );
+    }
+
+    await OTP.findOneAndUpdate(
+      { email, purpose },
+      {
+        $set: {
+          otp: otpStr,
+          expireAt: new Date(Date.now() + 1000 * 60 * 10),
+        },
+      },
+    );
+  } else {
+    await OTP.create({
+      email,
+      otp: otpStr,
+      expireAt: new Date(Date.now() + 1000 * 60 * 10),
+      purpose,
+    });
+  }
+
+  const { isSent } = await sendOtpFunc(email, otpStr);
+
+  if (!isSent) {
+    await OTP.findOneAndDelete({ email });
+    return errorResponse(res, 500, "Failed to send OTP");
+  }
+
+  return successResponse(res, 200, "OTP sent successfully");
+};
+
+export const verifyOtp = async (req, res) => {
+  const { success, data, error } = verifyOtpSchema.safeParse(req.body);
+
+  if (!success) {
+    return errorResponse(res, 400, error.issues[0].message);
+  }
+
+  const { email, otp, purpose } = data;
+
+  const isMatched = await OTP.findOne({ email, otp: otp.toString() });
+
+  if (!isMatched) {
+    return errorResponse(res, 400, "Invalid OTP");
+  }
+
+  await OTP.findOneAndUpdate(
+    {
+      email,
+      purpose,
+      otp: otp.toString(),
+    },
+    { $set: { isVerified: true } },
+  );
+
+  return successResponse(res, 200, "OTP verified successfully");
 };

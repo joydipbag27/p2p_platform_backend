@@ -62,3 +62,14 @@ export const reviewSchema = z.object({
     .max(5, "Rating maximum value is 5")
     .min(1, "Rating minimum value is 1"),
 });
+
+export const sendOtpSchema = z.object({
+  email: z.string().trim().pipe(z.email("Please enter a valid email")),
+  purpose: z.enum(["REGISTER", "PASSWORD_CHANGE", "FORGOT_PASSWORD"]),
+});
+
+export const verifyOtpSchema = z.object({
+  email: z.string().trim().pipe(z.email("Please enter a valid email")),
+  otp: z.coerce.number().max(999999, "Invalid OTP").min(100000, "Invalid OTP"),
+  purpose: z.enum(["REGISTER", "PASSWORD_CHANGE", "FORGOT_PASSWORD"]),
+});

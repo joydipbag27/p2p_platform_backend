@@ -1,5 +1,5 @@
+import env from "./config/env.js";
 import express from "express";
-import dotenv from "dotenv";
 import userRoutes from "./routes/userRoutes.js";
 import { connectDB } from "./config/db.js";
 import cookieParser from "cookie-parser";
@@ -15,11 +15,6 @@ import { socketAuth } from "./socket/middlewares/socketMiddleware.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js"
 
-dotenv.config({
-  path: ".env.local",
-  override: true,
-  quiet: true,
-});
 
 await connectDB();
 
@@ -27,7 +22,7 @@ const app = express();
 const server = createServer(app);
 export const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_ENDPOINT,
+    origin: env.FRONTEND_ENDPOINT,
     credentials: true,
   },
 });
@@ -36,10 +31,10 @@ io.use(socketAuth);
 initializeSocket(io);
 
 app.use(express.json());
-app.use(cookieParser(process.env.SESSION_SECRET));
+app.use(cookieParser(env.SESSION_SECRET));
 app.use(
   cors({
-    origin: process.env.FRONTEND_ENDPOINT,
+    origin: env.FRONTEND_ENDPOINT,
     credentials: true,
   }),
 );
@@ -51,6 +46,6 @@ app.use("/chat", checkAuth, chatRoutes);
 app.use("/notification", checkAuth, notificationRoutes);
 app.use("/reviews",checkAuth, reviewRoutes)
 
-server.listen(process.env.PORT, () => {
-  console.log(`App is running on port ${process.env.PORT}`);
+server.listen(env.PORT, () => {
+  console.log(`App is running on port ${env.PORT}`);
 });

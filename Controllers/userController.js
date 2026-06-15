@@ -2,9 +2,12 @@ import mongoose from "mongoose";
 import { Session } from "../models/sessionModel.js";
 import { User } from "../models/userModel.js";
 import {
+  changePasswordSchema,
+  forgotPassSchema,
   loginSchema,
   registerSchema,
   sendOtpSchema,
+  setNewPassSchema,
   verifyOtpSchema,
 } from "../validators/zodSchema.js";
 import bcrypt from "bcrypt";
@@ -43,6 +46,12 @@ export const emailRegister = async (req, res) => {
       avatar: `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURI(username)}`,
     });
 
+    await OTP.deleteOne({
+      email,
+      purpose: "REGISTER",
+      isVerified: true,
+    });
+
     return successResponse(res, 200, "Registration successful");
   } catch (error) {
     return errorResponse(res, 500, "Failed to create user");
@@ -68,6 +77,14 @@ export const emailLogin = async (req, res) => {
     );
   }
 
+  if (!userInfo.password) {
+    return errorResponse(
+      res,
+      400,
+      "This account doesn't have a password. Please login with Google ",
+    );
+  }
+
   const isPasswordMatched = await bcrypt.compare(password, userInfo.password);
 
   if (!isPasswordMatched) {
@@ -84,7 +101,7 @@ export const emailLogin = async (req, res) => {
   const sessionId = new mongoose.Types.ObjectId();
 
   try {
-    const sessionInfo = await Session.create({
+    await Session.create({
       _id: sessionId,
       userId: userInfo._id,
       expiresAt: new Date(Date.now() + sessionMaxAge),
@@ -176,83 +193,201 @@ export const logout = async (req, res) => {
   }
 };
 
-export const sendOtp = async (req, res) => {
-  const { success, data, error } = sendOtpSchema.safeParse(req.body);
+export const forgotPass = async (req, res) => {
+  const { success, data, error } = forgotPassSchema.safeParse(req.body);
 
   if (!success) {
-    console.log(error);
     return errorResponse(res, 400, error.issues[0].message);
   }
 
-  const { email, purpose } = data;
+  const { email, newPassword } = data;
 
-  const otpStr = crypto.randomInt(100000, 999999).toString();
+  const otpInfo = await OTP.findOne({
+    email,
+    purpose: "FORGOT_PASSWORD",
+    isVerified: true,
+  });
 
-  const existingOtp = await OTP.findOne({ email, purpose });
+  if (!otpInfo) {
+    return errorResponse(res, 403, "Please verify the email");
+  }
 
-  if (existingOtp) {
-    const now = Date.now();
-    const coolDownPeriod = Date.now(existingOtp.createdAt) + 1000 * 60;
+  if (!otpInfo.isEmailRegistered) {
+    return errorResponse(
+      res,
+      403,
+      "You can't change an unregistered email's password",
+    );
+  }
 
-    if (now < coolDownPeriod) {
-      return errorResponse(
-        res,
-        400,
-        "Please wait before requesting another OTP",
-      );
+  const hashedPass = await bcrypt.hash(newPassword, 10);
+
+  try {
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        email,
+      },
+      { $set: { password: hashedPass } },
+    );
+
+    if (!updatedUser) {
+      return errorResponse(res, 404, "User not found");
     }
 
-    await OTP.findOneAndUpdate(
-      { email, purpose },
-      {
-        $set: {
-          otp: otpStr,
-          expireAt: new Date(Date.now() + 1000 * 60 * 10),
-        },
-      },
-    );
-  } else {
-    await OTP.create({
-      email,
-      otp: otpStr,
-      expireAt: new Date(Date.now() + 1000 * 60 * 10),
-      purpose,
+    await Session.deleteMany({
+      userId: updatedUser._id,
     });
+
+    await OTP.deleteOne({
+      email,
+      purpose: "FORGOT_PASSWORD",
+      isVerified: true,
+      isEmailRegistered: true,
+    });
+
+    return successResponse(res, 200, "Your password changed successfully");
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, 500, "Failed to change password");
   }
-
-  const { isSent } = await sendOtpFunc(email, otpStr);
-
-  if (!isSent) {
-    await OTP.findOneAndDelete({ email });
-    return errorResponse(res, 500, "Failed to send OTP");
-  }
-
-  return successResponse(res, 200, "OTP sent successfully");
 };
 
-export const verifyOtp = async (req, res) => {
-  const { success, data, error } = verifyOtpSchema.safeParse(req.body);
+export const passwordStatus = async (req, res) => {
+  try {
+    const userInfo = await User.findById(req.user.id);
+
+    if (!userInfo) {
+      return errorResponse(res, 400, "User not found");
+    }
+
+    return successResponse(res, 200, "Password status fetched successfully", {
+      isPassAvaillable: !!userInfo.password,
+    });
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, 500, "Failed to check password status");
+  }
+};
+
+export const setNewPass = async (req, res) => {
+  const { success, data, error } = setNewPassSchema.safeParse(req.body);
 
   if (!success) {
     return errorResponse(res, 400, error.issues[0].message);
   }
 
-  const { email, otp, purpose } = data;
+  const { newPassword } = data;
 
-  const isMatched = await OTP.findOne({ email, otp: otp.toString() });
+  const userInfo = await User.findById(req.user.id);
 
-  if (!isMatched) {
-    return errorResponse(res, 400, "Invalid OTP");
+  if (!userInfo) {
+    return errorResponse(res, 400, "User not found");
   }
 
-  await OTP.findOneAndUpdate(
-    {
-      email,
-      purpose,
-      otp: otp.toString(),
-    },
-    { $set: { isVerified: true } },
-  );
+  if (userInfo.password) {
+    return errorResponse(res, 400, "You already have a password");
+  }
 
-  return successResponse(res, 200, "OTP verified successfully");
+  const otpInfo = await OTP.findOne({
+    email: userInfo.email,
+    purpose: "SET_PASSWORD",
+    isVerified: true,
+  });
+
+  if (!otpInfo) {
+    return errorResponse(res, 403, "Please verify the email");
+  }
+
+  const hashedPass = await bcrypt.hash(newPassword, 10);
+
+  try {
+    await User.findOneAndUpdate(
+      {
+        _id: req.user.id,
+      },
+      { $set: { password: hashedPass } },
+    );
+
+    await Session.deleteMany({
+      userId: req.user.id,
+    });
+
+    await OTP.deleteOne({
+      _id: otpInfo._id,
+    });
+
+    return successResponse(res, 200, "Your password changed successfully");
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, 500, "Failed to set new password");
+  }
 };
+
+export const changePassword = async (req, res) => {
+  const { success, data, error } = changePasswordSchema.safeParse(req.body);
+
+  if (!success) {
+    return errorResponse(res, 400, error.issues[0].message);
+  }
+
+  const { newPassword, oldPassword } = data;
+
+  if (oldPassword === newPassword) {
+  return errorResponse(
+    res,
+    400,
+    "New password must be different from the old password"
+  );
+}
+
+  const userInfo = await User.findById(req.user.id);
+
+  if (!userInfo) {
+    return errorResponse(res, 400, "User not found");
+  }
+
+  if (!userInfo.password) {
+    return errorResponse(res, 400, "This account does not have a password");
+  }
+
+  const otpInfo = await OTP.findOne({
+    email: userInfo.email,
+    purpose: "CHANGE_PASSWORD",
+    isVerified: true,
+  });
+
+  if (!otpInfo) {
+    return errorResponse(res, 403, "Please verify the email");
+  }
+
+  //CHECK OLD PASSWORD
+  const isPasswordMatched = await bcrypt.compare(oldPassword, userInfo.password);
+
+  if(!isPasswordMatched){
+    return errorResponse(res, 403, "Wrong password, please try again")
+  }
+
+  const hashedNewPass = await bcrypt.hash(newPassword, 10);
+
+  try {
+    await User.findOneAndUpdate(
+      {
+        _id: req.user.id,
+      },
+      { $set: { password: hashedNewPass } },
+    );
+
+    await Session.deleteMany({
+      userId: req.user.id,
+    });
+
+    await OTP.deleteOne({
+      _id: otpInfo._id,
+    });
+
+    return successResponse(res, 200, "Your password changed successfully");
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, 500, "Failed to set new password");
+  }
+}

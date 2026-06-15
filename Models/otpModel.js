@@ -24,8 +24,12 @@ const otpSchema = new mongoose.Schema(
     },
     purpose: {
         type: String,
-        enum: ["REGISTER", "PASSWORD_CHANGE", "FORGOT_PASSWORD"],
+        enum: ["REGISTER", "CHANGE_PASSWORD", "FORGOT_PASSWORD", "SET_PASSWORD"],
         required: true
+    },
+    isEmailRegistered: {
+      type: Boolean,
+      default: false
     }
   },
   {

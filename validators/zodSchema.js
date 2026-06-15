@@ -73,3 +73,34 @@ export const verifyOtpSchema = z.object({
   otp: z.coerce.number().max(999999, "Invalid OTP").min(100000, "Invalid OTP"),
   purpose: z.enum(["REGISTER", "PASSWORD_CHANGE", "FORGOT_PASSWORD"]),
 });
+
+export const forgotPassSchema = z.object({
+  email: z.string().trim().pipe(z.email("Please enter a valid email")),
+  newPassword: z
+    .string()
+    .trim()
+    .min(8, "Password must be 8 characters long")
+    .max(100, "Password can't exceed 100 characters"),
+});
+
+export const setNewPassSchema = z.object({
+  newPassword: z
+    .string()
+    .trim()
+    .min(8, "Password must be 8 characters long")
+    .max(100, "Password can't exceed 100 characters"),
+});
+
+export const changePasswordSchema = z.object({
+  newPassword: z
+    .string()
+    .trim()
+    .min(8, "Password must be 8 characters long")
+    .max(100, "Password can't exceed 100 characters"),
+
+  oldPassword: z
+    .string()
+    .trim()
+    .min(8, "Password must be 8 characters long")
+    .max(100, "Password can't exceed 100 characters"),
+});

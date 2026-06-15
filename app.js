@@ -14,6 +14,7 @@ import { initializeSocket } from "./socket/index.js";
 import { socketAuth } from "./socket/middlewares/socketMiddleware.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js"
+import authRoutes from "./routes/authRoutes.js"
 
 
 await connectDB();
@@ -40,6 +41,7 @@ app.use(
 );
 
 app.use("/user", userRoutes);
+app.use("/auth", authRoutes)
 app.use("/exchange", checkAuth, exchangeRoutes);
 app.use("/match", checkAuth, matchRoutes);
 app.use("/chat", checkAuth, chatRoutes);

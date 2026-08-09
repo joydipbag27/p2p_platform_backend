@@ -104,3 +104,33 @@ export const changePasswordSchema = z.object({
     .min(8, "Password must be 8 characters long")
     .max(100, "Password can't exceed 100 characters"),
 });
+
+export const createReportSchema = z.object({
+  reportedUserId: z.string().trim().min(1, "Reported user is required"),
+
+  matchId: z.string().trim().min(1, "Match is required"),
+
+  reason: z.enum(
+    [
+      "SPAM",
+      "FAKE_PROFILE",
+      "HARASSMENT",
+      "SCAM_ATTEMPT",
+      "USER_DID_NOT_SHOW_UP",
+      "FAKE_CASH",
+      "FAKE_PAYMENT_PROOF",
+      "INAPPROPRIATE_BEHAVIOR",
+      "OTHER",
+    ],
+    {
+      message: "Invalid report reason",
+    },
+  ),
+
+  description: z
+    .string()
+    .trim()
+    .min(10, "Please provide more details")
+    .max(500, "Description cannot exceed 500 characters")
+    .optional(),
+});

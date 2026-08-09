@@ -15,6 +15,7 @@ import { socketAuth } from "./socket/middlewares/socketMiddleware.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js"
 import authRoutes from "./routes/authRoutes.js"
+import reportRoutes from "./routes/reportRoutes.js"
 
 
 await connectDB();
@@ -47,6 +48,7 @@ app.use("/match", checkAuth, matchRoutes);
 app.use("/chat", checkAuth, chatRoutes);
 app.use("/notification", checkAuth, notificationRoutes);
 app.use("/reviews",checkAuth, reviewRoutes)
+app.use("/report", checkAuth, reportRoutes)
 
 server.listen(env.PORT, () => {
   console.log(`App is running on port ${env.PORT}`);
